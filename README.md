@@ -30,7 +30,26 @@ pnpm dev:admin
 密码：admin123!
 ```
 
+用户端演示账号：
+
+```text
+用户名：guest
+密码：guest123!
+```
+
 生产环境请通过 `IM_JWT_SECRET`、`IM_ADMIN_PASSWORD` 和 `IM_XMPP_WS_URL` 覆盖默认值，并使用 `wss://`。
+
+## GitHub Pages 演示
+
+推送到 `main` 后，GitHub Actions 会将用户端发布到 `/client/`，管理端发布到 `/admin/`，项目首页会提供入口和演示账号。Pages 构建使用浏览器本地 mock 数据：账号和聊天操作只在当前浏览器中演示，不连接 Node API、SQLite 或 XMPP 服务。API/XMPP 服务不能由 GitHub Pages 托管，需要另行部署到支持 Node.js 和 WebSocket 的运行环境。
+
+手动构建 Pages 静态文件：
+
+```bash
+pnpm build:pages
+```
+
+生成目录为 `dist-pages/`。
 
 ## 协议边界
 

@@ -168,6 +168,9 @@ export class ChatDatabase {
         )
         .run(adminId, adminUsername, "Control Room", passwordHash(adminPassword), now());
     }
+    if (!this.findUserByUsername("guest")) {
+      this.createUser("guest", "guest123!", "Guest Member");
+    }
     const count = numberValue(this.database.prepare("SELECT COUNT(*) AS count FROM rooms").get()?.count);
     if (!count) {
       const roomId = id("room");
@@ -180,6 +183,8 @@ export class ChatDatabase {
       this.database
         .prepare("INSERT INTO room_members (room_id, user_id, joined_at) VALUES (?, ?, ?)")
         .run(roomId, adminId, now());
+      const guest = this.findUserByUsername("guest");
+      if (guest) this.joinRoom(roomId, guest.id);
     }
   }
 

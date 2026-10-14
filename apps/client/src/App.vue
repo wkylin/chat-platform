@@ -68,7 +68,7 @@
             </div>
           </Listbox>
         </div>
-        <p class="auth-card__foot">{{ copy.localDemo }} · API {{ apiOrigin }}</p>
+        <p class="auth-card__foot">{{ demoMode ? (locale === "zh-CN" ? "演示账号：guest / guest123!" : "Demo account: guest / guest123!") : `${copy.localDemo} · API ${apiOrigin}` }}</p>
       </form>
     </section>
 
@@ -77,7 +77,7 @@
         <div class="brand-lockup"><span class="brand-mark">M</span><span>match<span
               class="brand-lockup__muted">/chat</span></span></div>
         <div class="workspace__transport"><span class="transport-dot" :class="`is-${connectionStatus}`"></span><span>{{
-          connectionLabel }}</span><span class="transport-separator">/</span><span>{{ copy.xmppTransport }}</span>
+          connectionLabel }}</span><span class="transport-separator">/</span><span>{{ demoMode ? copy.localDemo : copy.xmppTransport }}</span>
         </div>
         <div class="workspace__account"><span class="avatar">{{ initials(user.displayName) }}</span><span>{{
           user.displayName }}</span>
@@ -186,6 +186,7 @@ import { XmppChatClient, type ImChatMessage, type ImChatPanelLabels, type ImRoom
 
 const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8787/api";
 const apiOrigin = new URL(apiBase).origin;
+const demoMode = import.meta.env.VITE_DEMO_MODE === "true";
 type Locale = "en" | "zh-CN";
 const locale = ref<Locale>(localStorage.getItem("match-chat-locale") === "zh-CN" ? "zh-CN" : "en");
 const localeOptions: { value: Locale; label: string; shortLabel: string }[] = [
@@ -194,14 +195,14 @@ const localeOptions: { value: Locale; label: string; shortLabel: string }[] = [
 ];
 const translations = {
   en: {
-    privateNetwork: "MATCH CHAT / PRIVATE NETWORK", authTitle: "Conversations with a pulse.", authDescription: "A focused room for people who need the signal, not the noise.", factTransport: "XMPP live transport", factModerated: "Moderated by design", factFocused: "Rooms that stay focused", welcomeBack: "Welcome back", createIdentity: "Create an identity", register: "Register", signIn: "Sign in", enterRoom: "Enter the room", openChannel: "Open your channel", loginHint: "Your live rooms are waiting.", registerHint: "Your display name is how people will see you.", username: "Username", usernamePlaceholder: "signal-maker", displayName: "Display name", displayNamePlaceholder: "Signal Maker", password: "Password", passwordPlaceholder: "8+ characters", connecting: "Connecting…", enterWorkspace: "Enter workspace", createAccount: "Create account", language: "Language", localDemo: "Local demo", xmppTransport: "xmpp over websocket", signOut: "Sign out", yourNetwork: "Your network", rooms: "Rooms", createRoom: "Create room", roomName: "Room name", roomPurpose: "One-line purpose", members: "members", messages: "messages", noRooms: "No rooms yet. Start one.", liveMeansLive: "Live means live.", liveNote: "Messages travel through an XMPP room, while history and moderation stay on the API.", activeRoom: "Active room", noDescription: "A room without a description yet.", roomJid: "ROOM JID", chooseRoom: "Choose a room.", chooseRoomHint: "Every useful conversation starts with a clear place to have it.", roomTelemetry: "Room telemetry", stayInSignal: "Stay in the signal.", transport: "TRANSPORT", transportDescription: "Each room is joined as an XMPP MUC. If transport drops, the panel stays honest.", communityNote: "COMMUNITY NOTE", reportDescription: "Report a message through the API review queue when a room needs a human decision.", refreshRooms: "Refresh room data", quote: "“A good room is a small instrument. You can hear when it is out of tune.”", reportPrompt: "Why should this message be reviewed?", reportDefault: "Needs moderator review", reportSent: "Report sent to the control room.", status: { idle: "Standby", connecting: "Connecting", online: "Live", offline: "Offline", error: "Needs attention" }, panel: { liveThread: "room / live thread", people: "people", emptyTitle: "The room is quiet.", emptyDescription: "Start the thread with a clear signal.", report: "report", removedMessage: "This message was removed by a moderator.", unavailablePlaceholder: "Room is not accepting messages", composerPlaceholder: "Write to the room…", sendHint: "Enter to send · Shift + Enter for a new line", send: "Send signal" },
+    privateNetwork: "MATCH CHAT / PRIVATE NETWORK", authTitle: "Conversations with a pulse.", authDescription: "A focused room for people who need the signal, not the noise.", factTransport: "XMPP live transport", factModerated: "Moderated by design", factFocused: "Rooms that stay focused", welcomeBack: "Welcome back", createIdentity: "Create an identity", register: "Register", signIn: "Sign in", enterRoom: "Enter the room", openChannel: "Open your channel", loginHint: "Your live rooms are waiting.", registerHint: "Your display name is how people will see you.", username: "Username", usernamePlaceholder: "signal-maker", displayName: "Display name", displayNamePlaceholder: "Signal Maker", password: "Password", passwordPlaceholder: "8+ characters", connecting: "Connecting…", enterWorkspace: "Enter workspace", createAccount: "Create account", language: "Language", localDemo: "Local demo", xmppTransport: "xmpp over websocket", signOut: "Sign out", yourNetwork: "Your network", rooms: "Rooms", createRoom: "Create room", roomName: "Room name", roomPurpose: "One-line purpose", members: "members", messages: "messages", noRooms: "No rooms yet. Start one.", liveMeansLive: "Live means live.", liveNote: "Messages travel through an XMPP room, while history and moderation stay on the API.", activeRoom: "Active room", noDescription: "A room without a description yet.", roomJid: "ROOM JID", chooseRoom: "Choose a room.", chooseRoomHint: "Every useful conversation starts with a clear place to have it.", roomTelemetry: "Room telemetry", stayInSignal: "Stay in the signal.", transport: "TRANSPORT", transportDescription: "Each room is joined as an XMPP MUC. If transport drops, the panel stays honest.", communityNote: "COMMUNITY NOTE", reportDescription: "Report a message through the API review queue when a room needs a human decision.", refreshRooms: "Refresh room data", quote: "“A good room is a small instrument. You can hear when it is out of tune.”", reportPrompt: "Why should this message be reviewed?", reportDefault: "Needs moderator review", reportSent: "Report sent to the control room.", demoStatus: "Demo", status: { idle: "Standby", connecting: "Connecting", online: "Live", offline: "Offline", error: "Needs attention" }, panel: { liveThread: "room / live thread", people: "people", emptyTitle: "The room is quiet.", emptyDescription: "Start the thread with a clear signal.", report: "report", removedMessage: "This message was removed by a moderator.", unavailablePlaceholder: "Room is not accepting messages", composerPlaceholder: "Write to the room…", sendHint: "Enter to send · Shift + Enter for a new line", send: "Send signal" },
   },
   "zh-CN": {
-    privateNetwork: "MATCH CHAT / 私密网络", authTitle: "让对话保持脉搏。", authDescription: "为重视有效信息、远离噪音的人打造的专注空间。", factTransport: "XMPP 实时传输", factModerated: "内建内容管理", factFocused: "始终专注的房间", welcomeBack: "欢迎回来", createIdentity: "创建身份", register: "注册", signIn: "登录", enterRoom: "进入房间", openChannel: "开启频道", loginHint: "你的实时房间正在等待。", registerHint: "其他人将通过显示名称认识你。", username: "用户名", usernamePlaceholder: "signal-maker", displayName: "显示名称", displayNamePlaceholder: "信号创作者", password: "密码", passwordPlaceholder: "至少 8 个字符", connecting: "正在连接…", enterWorkspace: "进入工作区", createAccount: "创建账号", language: "语言", localDemo: "本地演示", xmppTransport: "XMPP WebSocket 传输", signOut: "退出登录", yourNetwork: "你的网络", rooms: "房间", createRoom: "创建房间", roomName: "房间名称", roomPurpose: "一句话说明", members: "位成员", messages: "条消息", noRooms: "还没有房间，创建一个吧。", liveMeansLive: "实时就是实时。", liveNote: "消息经由 XMPP 房间传输，历史记录和内容管理则保留在 API 中。", activeRoom: "当前房间", noDescription: "该房间暂未添加说明。", roomJid: "房间 JID", chooseRoom: "选择一个房间。", chooseRoomHint: "每一次有价值的对话，都始于一个清晰的交流场所。", roomTelemetry: "房间数据", stayInSignal: "保持专注。", transport: "传输", transportDescription: "每个房间都以 XMPP MUC 加入。传输中断时，面板会如实反映状态。", communityNote: "社区提示", reportDescription: "当房间需要人工判断时，可通过 API 审核队列举报消息。", refreshRooms: "刷新房间数据", quote: "“好的房间像一件小巧的乐器，走音时一听便知。”", reportPrompt: "为什么需要审核此消息？", reportDefault: "需要管理员审核", reportSent: "举报已发送到管理台。", status: { idle: "待命", connecting: "连接中", online: "在线", offline: "离线", error: "需要处理" }, panel: { liveThread: "房间 / 实时对话", people: "位成员", emptyTitle: "房间里很安静。", emptyDescription: "用一条清晰的消息开启对话。", report: "举报", removedMessage: "此消息已被管理员移除。", unavailablePlaceholder: "房间当前不接受消息", composerPlaceholder: "写点什么…", sendHint: "Enter 发送 · Shift + Enter 换行", send: "发送消息" },
+    privateNetwork: "MATCH CHAT / 私密网络", authTitle: "让对话保持脉搏。", authDescription: "为重视有效信息、远离噪音的人打造的专注空间。", factTransport: "XMPP 实时传输", factModerated: "内建内容管理", factFocused: "始终专注的房间", welcomeBack: "欢迎回来", createIdentity: "创建身份", register: "注册", signIn: "登录", enterRoom: "进入房间", openChannel: "开启频道", loginHint: "你的实时房间正在等待。", registerHint: "其他人将通过显示名称认识你。", username: "用户名", usernamePlaceholder: "signal-maker", displayName: "显示名称", displayNamePlaceholder: "信号创作者", password: "密码", passwordPlaceholder: "至少 8 个字符", connecting: "正在连接…", enterWorkspace: "进入工作区", createAccount: "创建账号", language: "语言", localDemo: "本地演示", xmppTransport: "XMPP WebSocket 传输", signOut: "退出登录", yourNetwork: "你的网络", rooms: "房间", createRoom: "创建房间", roomName: "房间名称", roomPurpose: "一句话说明", members: "位成员", messages: "条消息", noRooms: "还没有房间，创建一个吧。", liveMeansLive: "实时就是实时。", liveNote: "消息经由 XMPP 房间传输，历史记录和内容管理则保留在 API 中。", activeRoom: "当前房间", noDescription: "该房间暂未添加说明。", roomJid: "房间 JID", chooseRoom: "选择一个房间。", chooseRoomHint: "每一次有价值的对话，都始于一个清晰的交流场所。", roomTelemetry: "房间数据", stayInSignal: "保持专注。", transport: "传输", transportDescription: "每个房间都以 XMPP MUC 加入。传输中断时，面板会如实反映状态。", communityNote: "社区提示", reportDescription: "当房间需要人工判断时，可通过 API 审核队列举报消息。", refreshRooms: "刷新房间数据", quote: "“好的房间像一件小巧的乐器，走音时一听便知。”", reportPrompt: "为什么需要审核此消息？", reportDefault: "需要管理员审核", reportSent: "举报已发送到管理台。", demoStatus: "演示", status: { idle: "待命", connecting: "连接中", online: "在线", offline: "离线", error: "需要处理" }, panel: { liveThread: "房间 / 实时对话", people: "位成员", emptyTitle: "房间里很安静。", emptyDescription: "用一条清晰的消息开启对话。", report: "举报", removedMessage: "此消息已被管理员移除。", unavailablePlaceholder: "房间当前不接受消息", composerPlaceholder: "写点什么…", sendHint: "Enter 发送 · Shift + Enter 换行", send: "发送消息" },
   },
 } satisfies Record<Locale, Record<string, unknown>>;
 const copy = computed(() => translations[locale.value]);
-const chatLabels = computed<ImChatPanelLabels>(() => ({ ...copy.value.panel, status: copy.value.status }));
+const chatLabels = computed<ImChatPanelLabels>(() => ({ ...copy.value.panel, status: { ...copy.value.status, online: demoMode ? copy.value.demoStatus : copy.value.status.online } }));
 const token = ref(localStorage.getItem("match-chat-token") || "");
 const user = ref<ImUser | null>(null);
 const rooms = ref<ImRoom[]>([]);
@@ -212,7 +213,7 @@ const errorMessage = ref("");
 const busy = ref(false);
 const showCreateRoom = ref(false);
 const authMode = ref<"login" | "register">("login");
-const authForm = reactive({ username: "", displayName: "", password: "" });
+const authForm = reactive({ username: demoMode ? "guest" : "", displayName: "", password: demoMode ? "guest123!" : "" });
 const roomForm = reactive({ name: "", description: "" });
 const connectionStatus = ref<XmppConnectionStatus>("offline");
 const xmpp = new XmppChatClient({ onStatus: (status) => (connectionStatus.value = status), onMessage: receiveMessage, onError: (error) => (notice.value = error.message) });
@@ -223,6 +224,18 @@ function persistLocale(): void { localStorage.setItem("match-chat-locale", local
 function setLocale(value: Locale): void { locale.value = value; persistLocale(); }
 
 function initials(value: string): string { return value.split(/\s+/).filter(Boolean).map((part) => part[0]).join("").slice(0, 2).toUpperCase(); }
+
+function openDemoWorkspace(username = "guest"): void {
+  user.value = { id: "demo_guest", username, displayName: username === "guest" ? "Guest Member" : username, role: "user", status: "active", createdAt: new Date().toISOString() };
+  const room: ImRoom = { id: "demo_room", name: "Signal Commons", description: "A sample room for exploring the Match Chat user experience.", jid: "room-demo@conference.example", status: "active", memberCount: 4, messageCount: 2, createdAt: new Date().toISOString(), ownerId: "demo_admin" };
+  rooms.value = [room];
+  selectedRoom.value = room;
+  messages.value = [
+    { id: "demo_message_1", roomId: room.id, userId: "demo_admin", displayName: "Mira Chen", body: "Welcome to the demo room. Try sending a message to see the local mock interaction.", status: "visible", createdAt: new Date(Date.now() - 1000 * 60 * 12).toISOString() },
+    { id: "demo_message_2", roomId: room.id, userId: "demo_guest", displayName: "Guest Member", body: "The room is ready. This conversation stays in this browser session.", status: "visible", createdAt: new Date(Date.now() - 1000 * 60 * 8).toISOString() },
+  ];
+  connectionStatus.value = "online";
+}
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
@@ -237,6 +250,10 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 async function submitAuth(): Promise<void> {
   busy.value = true; errorMessage.value = "";
   try {
+    if (demoMode) {
+      if (authMode.value !== "login" || authForm.username !== "guest" || authForm.password !== "guest123!") throw new Error("Use the demo account shown below.");
+      token.value = "github-pages-demo-user"; localStorage.setItem("match-chat-token", token.value); openDemoWorkspace(); return;
+    }
     const result = await request<{ token: string; user: ImUser }>(`/auth/${authMode.value}`, { method: "POST", body: JSON.stringify(authForm) });
     token.value = result.token; user.value = result.user; localStorage.setItem("match-chat-token", result.token);
     await bootWorkspace();
@@ -247,6 +264,7 @@ async function submitAuth(): Promise<void> {
 function toggleAuthMode(): void { authMode.value = authMode.value === "login" ? "register" : "login"; errorMessage.value = ""; }
 
 async function bootWorkspace(): Promise<void> {
+  if (demoMode) { openDemoWorkspace(user.value?.username); return; }
   const result = await request<{ rooms: ImRoom[] }>("/rooms"); rooms.value = result.rooms;
   if (!selectedRoom.value && rooms.value[0]) await selectRoom(rooms.value[0]);
   await connectRealtime();
@@ -261,6 +279,7 @@ async function connectRealtime(): Promise<void> {
 
 async function selectRoom(room: ImRoom): Promise<void> {
   selectedRoom.value = room; messages.value = [];
+  if (demoMode) { return; }
   try {
     await request(`/rooms/${room.id}/join`, { method: "POST" });
     const result = await request<{ messages: ImChatMessage[] }>(`/rooms/${room.id}/messages`);
@@ -273,6 +292,10 @@ async function createRoom(): Promise<void> {
   if (!roomForm.name.trim()) return;
   busy.value = true;
   try {
+    if (demoMode) {
+      const room: ImRoom = { id: `demo_${Date.now()}`, name: roomForm.name.trim(), description: roomForm.description.trim(), jid: `room-demo-${Date.now()}@conference.example`, status: "active", memberCount: 1, messageCount: 0, createdAt: new Date().toISOString(), ownerId: user.value?.id || "demo_guest" };
+      rooms.value.unshift(room); roomForm.name = ""; roomForm.description = ""; showCreateRoom.value = false; await selectRoom(room); return;
+    }
     const result = await request<{ room: ImRoom }>("/rooms", { method: "POST", body: JSON.stringify(roomForm) });
     rooms.value.unshift(result.room); roomForm.name = ""; roomForm.description = ""; showCreateRoom.value = false; await selectRoom(result.room);
   } catch (error) { notice.value = error instanceof Error ? error.message : "Unable to create room."; }
@@ -280,6 +303,10 @@ async function createRoom(): Promise<void> {
 }
 
 async function sendMessage(body: string): Promise<void> {
+  if (demoMode && selectedRoom.value && user.value) {
+    messages.value.push({ id: `demo_message_${Date.now()}`, roomId: selectedRoom.value.id, userId: user.value.id, displayName: user.value.displayName, body, status: "visible", createdAt: new Date().toISOString(), mine: true });
+    selectedRoom.value.messageCount += 1; return;
+  }
   try { await xmpp.send(body); }
   catch (error) { notice.value = error instanceof Error ? error.message : "Message was not sent."; }
 }
@@ -288,6 +315,7 @@ async function reportMessage(messageId: string): Promise<void> {
   if (!selectedRoom.value) return;
   const reason = window.prompt(copy.value.reportPrompt, copy.value.reportDefault);
   if (!reason?.trim()) return;
+  if (demoMode) { notice.value = copy.value.reportSent; return; }
   try {
     await request(`/rooms/${selectedRoom.value.id}/reports`, {
       method: "POST",
@@ -305,12 +333,13 @@ function receiveMessage(message: ImChatMessage): void {
   messages.value.push(message); selectedRoom.value.messageCount += 1;
 }
 
-async function refreshRooms(): Promise<void> { const result = await request<{ rooms: ImRoom[] }>("/rooms"); rooms.value = result.rooms; if (selectedRoom.value) selectedRoom.value = rooms.value.find((room) => room.id === selectedRoom.value?.id) || selectedRoom.value; }
+async function refreshRooms(): Promise<void> { if (demoMode) { notice.value = copy.value.localDemo; return; } const result = await request<{ rooms: ImRoom[] }>("/rooms"); rooms.value = result.rooms; if (selectedRoom.value) selectedRoom.value = rooms.value.find((room) => room.id === selectedRoom.value?.id) || selectedRoom.value; }
 
-async function logout(): Promise<void> { await xmpp.disconnect(); try { await request("/im/session", { method: "DELETE" }); } catch { /* local logout still wins */ } token.value = ""; user.value = null; selectedRoom.value = null; messages.value = []; localStorage.removeItem("match-chat-token"); }
+async function logout(): Promise<void> { await xmpp.disconnect(); if (!demoMode) { try { await request("/im/session", { method: "DELETE" }); } catch { /* local logout still wins */ } } token.value = ""; user.value = null; selectedRoom.value = null; messages.value = []; localStorage.removeItem("match-chat-token"); }
 
 onMounted(async () => {
   if (!token.value) return;
+  if (demoMode) { openDemoWorkspace(); return; }
   try { const me = await request<{ user: ImUser }>("/me"); user.value = me.user; await bootWorkspace(); }
   catch { token.value = ""; localStorage.removeItem("match-chat-token"); }
 });

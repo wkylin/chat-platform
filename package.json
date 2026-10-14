@@ -12,7 +12,8 @@
     "dev:client": "pnpm --filter @match-chat/client dev",
     "dev:admin": "pnpm --filter @match-chat/admin dev",
     "build": "pnpm --recursive build",
-    "typecheck": "pnpm --recursive typecheck"
+    "typecheck": "pnpm --recursive typecheck",
+    "build:pages": "node scripts/build-pages.mjs"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.3.3",
