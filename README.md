@@ -37,11 +37,11 @@ pnpm dev:admin
 密码：guest123!
 ```
 
-生产环境请通过 `IM_JWT_SECRET`、`IM_ADMIN_PASSWORD` 和 `IM_XMPP_WS_URL` 覆盖默认值，并使用 `wss://`。
+生产环境请通过 `IM_JWT_SECRET`、`IM_ADMIN_PASSWORD` 和 `IM_XMPP_WS_URL` 覆盖默认值，并使用 `wss://`。Vercel 部署入口与所需环境变量见 [`apps/server/VERCEL.md`](apps/server/VERCEL.md)；当前临时 SQLite 与进程内会话状态只适合演示，持久化部署需要共享数据库与 Redis。
 
 ## GitHub Pages 演示
 
-推送到 `main` 后，GitHub Actions 会将用户端发布到 `/client/`，管理端发布到 `/admin/`，项目首页会提供入口和演示账号。Pages 构建使用浏览器本地 mock 数据：账号和聊天操作只在当前浏览器中演示，不连接 Node API、SQLite 或 XMPP 服务。API/XMPP 服务不能由 GitHub Pages 托管，需要另行部署到支持 Node.js 和 WebSocket 的运行环境。
+推送到 `main` 后，GitHub Actions 会将用户端发布到 `/client/`，管理端发布到 `/admin/`，项目首页会提供入口和演示账号。Pages 构建使用浏览器本地 mock 数据：账号和聊天操作只在当前浏览器中演示，不连接 Node API、SQLite 或 XMPP 服务。API/XMPP 服务不能由 GitHub Pages 托管，需要另行部署到支持 Node.js 和 WebSocket 的运行环境，例如 Vercel。
 
 手动构建 Pages 静态文件：
 

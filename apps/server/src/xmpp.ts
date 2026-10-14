@@ -204,7 +204,7 @@ export class XmppGateway {
     head: Buffer,
   ): void {
     const url = new URL(request.url || "/", `http://${request.headers.host || "localhost"}`);
-    if (url.pathname !== "/xmpp-websocket") {
+    if (url.pathname !== this.config.websocketPath) {
       socket.destroy();
       return;
     }
