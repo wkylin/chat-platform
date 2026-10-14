@@ -30,6 +30,11 @@ function now(): string {
   return new Date().toISOString();
 }
 
+function isTransientConnectionError(cause: unknown): boolean {
+  const message = cause instanceof Error ? cause.message : String(cause);
+  return /fetch failed|socket|ECONNRESET|ECONNREFUSED|ETIMEDOUT|EAI_AGAIN/i.test(message);
+}
+
 /** Neon-backed persistent database. Queries use Neon HTTP to avoid holding
  * database sockets open between Vercel Function invocations. */
 export class PostgresChatDatabase implements ChatDatabase {
@@ -40,7 +45,7 @@ export class PostgresChatDatabase implements ChatDatabase {
   constructor(connectionString: string, domain: string, adminUsername: string, adminPassword: string, syncAdminPassword = false) {
     this.sql = neon(connectionString);
     this.domain = domain;
-    this.ready = this.initialize(adminUsername, adminPassword, syncAdminPassword);
+    this.ready = this.initializeWithRetry(adminUsername, adminPassword, syncAdminPassword);
   }
 
   private rawQuery<T extends Row = Row>(query: string, params: unknown[] = []): Promise<T[]> {
@@ -54,6 +59,19 @@ export class PostgresChatDatabase implements ChatDatabase {
 
   ensureReady(): Promise<void> {
     return this.ready;
+  }
+
+  private async initializeWithRetry(adminUsername: string, adminPassword: string, syncAdminPassword: boolean): Promise<void> {
+    for (let attempt = 0; ; attempt += 1) {
+      try {
+        await this.initialize(adminUsername, adminPassword, syncAdminPassword);
+        return;
+      } catch (cause) {
+        if (!isTransientConnectionError(cause) || attempt >= 2) throw cause;
+        console.warn(`[postgres] temporary connection failure during startup; retry ${attempt + 1}/2`);
+        await new Promise((resolve) => setTimeout(resolve, 300 * (attempt + 1)));
+      }
+    }
   }
 
   private async initialize(adminUsername: string, adminPassword: string, syncAdminPassword: boolean): Promise<void> {
