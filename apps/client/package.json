@@ -1,0 +1,23 @@
+{
+  "name": "@match-chat/client",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5178",
+    "build": "vite build",
+    "typecheck": "vue-tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@headlessui/vue": "^1.7.23",
+    "@match-chat/im-ui": "workspace:*",
+    "lucide-vue-next": "^1.0.0",
+    "vue": "^3.5.29"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.4",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vue-tsc": "^3.2.6"
+  }
+}

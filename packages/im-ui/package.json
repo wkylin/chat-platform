@@ -1,0 +1,14 @@
+{
+  "name": "@match-chat/im-ui",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./style.css": "./src/style.css"
+  },
+  "dependencies": {
+    "@xmpp/client": "^0.14.0",
+    "vue": "^3.5.29"
+  }
+}

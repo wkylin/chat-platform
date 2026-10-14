@@ -1,0 +1,21 @@
+{
+  "name": "match-chat-platform",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@11.25.0",
+  "engines": {
+    "node": ">=22.5.0"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @match-chat/server --filter @match-chat/client --filter @match-chat/admin dev",
+    "dev:server": "pnpm --filter @match-chat/server dev",
+    "dev:client": "pnpm --filter @match-chat/client dev",
+    "dev:admin": "pnpm --filter @match-chat/admin dev",
+    "build": "pnpm --recursive build",
+    "typecheck": "pnpm --recursive typecheck"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "tailwindcss": "^4.3.3"
+  }
+}
