@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 const repository = process.env.GITHUB_REPOSITORY || "wkylin/chat-platform";
 const project = repository.split("/").at(-1);
 const basePath = `/${project}/`;
+const apiBaseUrl = process.env.VITE_API_BASE_URL || "https://match-chat-server-seven.vercel.app/api";
 const output = new URL("../dist-pages/", import.meta.url);
 
 rmSync(output, { recursive: true, force: true });
@@ -33,6 +34,7 @@ writeFileSync(new URL("index.html", output), `<!doctype html>
       .credentials { margin-top: 16px; padding: 19px 21px; color: #c7ced8; background: rgba(183,243,109,.055); border: 1px solid rgba(183,243,109,.14); border-radius: 12px; font-size: 13px; line-height: 1.8; }
       .credentials strong { color: #f0f2f6; }
       code { color: #d3ef66; font: 12px ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .server-link { display: inline; margin: 0; padding: 0; color: #b7f36d; background: none; border-radius: 0; font: inherit; font-weight: 700; text-decoration: underline; }
       footer { margin-top: 30px; color: #7e8795; font-size: 12px; line-height: 1.7; }
       @media (max-width: 650px) { main { padding-top: 64px; } .systems { grid-template-columns: 1fr; margin-top: 35px; } article { min-height: auto; } }
     </style>
@@ -41,13 +43,13 @@ writeFileSync(new URL("index.html", output), `<!doctype html>
     <main>
       <p class="eyebrow">MATCH CHAT / PRIVATE NETWORK</p>
       <h1>Make room for a better conversation.</h1>
-      <p class="lede">This preview includes the member experience and the control room. Both run with browser-local mock data, so you can explore the interfaces without a backend account.</p>
+      <p class="lede">The member workspace and control room connect to the Match Chat server for accounts, room data, moderation, and live messaging.</p>
       <section class="systems" aria-label="Demo systems">
-        <article><span class="index">01 / MEMBER SPACE</span><h2>User workspace</h2><p>Join a sample room, send local messages, and explore the chat experience.</p><a href="${basePath}client/">Open user workspace <span>↗</span></a></article>
-        <article><span class="index">02 / OPERATIONS</span><h2>Control room</h2><p>Review sample reports, manage room status, and inspect member accounts.</p><a href="${basePath}admin/">Open control room <span>↗</span></a></article>
+        <article><span class="index">01 / MEMBER SPACE</span><h2>User workspace</h2><p>Register or sign in, join a shared room, and exchange live messages.</p><a href="${basePath}client/">Open user workspace <span>↗</span></a></article>
+        <article><span class="index">02 / OPERATIONS</span><h2>Control room</h2><p>Review live reports, manage room status, and inspect member accounts.</p><a href="${basePath}admin/">Open control room <span>↗</span></a></article>
       </section>
-      <div class="credentials"><strong>Demo accounts</strong><br />User workspace: <code>guest</code> / <code>guest123!</code><br />Control room: <code>admin</code> / <code>admin123!</code></div>
-      <footer>These are UI demos. Changes stay in the current browser session and reset after a reload. The Node API, SQLite database, and XMPP WebSocket gateway require a separate server host; GitHub Pages only serves these static frontends.</footer>
+      <div class="credentials"><strong>Server accounts</strong><br />User workspace: <code>guest</code> / <code>guest123!</code><br />Control room: <code>admin</code> / password configured as <code>IM_ADMIN_PASSWORD</code> on Vercel.</div>
+      <footer>Both frontends use the Vercel API at <code>${apiBaseUrl}</code>. <a class="server-link" href="https://match-chat-server-seven.vercel.app/api/health">Check server health ↗</a> Accounts and room data are stored by the server; GitHub Pages only hosts the static frontends.</footer>
     </main>
   </body>
 </html>
@@ -65,7 +67,7 @@ for (const appName of ["client", "admin"]) {
   ], {
     cwd: fileURLToPath(appDirectory),
     stdio: "inherit",
-    env: { ...process.env, VITE_DEMO_MODE: "true" },
+    env: { ...process.env, VITE_API_BASE_URL: apiBaseUrl, VITE_DEMO_MODE: "false" },
   });
   if (result.error) throw result.error;
   if (result.status !== 0) process.exit(result.status || 1);

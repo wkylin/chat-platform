@@ -23,7 +23,7 @@ pnpm dev:admin
 - API / XMPP：<http://localhost:8787>
 - XMPP WebSocket：`ws://localhost:8787/xmpp-websocket`
 
-首次启动会创建一个演示管理员：
+本地首次启动会创建一个演示管理员：
 
 ```text
 用户名：admin
@@ -39,11 +39,9 @@ pnpm dev:admin
 
 生产环境请设置 `IM_JWT_SECRET` 和 `IM_ADMIN_PASSWORD`。Vercel 部署步骤、Neon/Upstash 配置与环境变量见 [`apps/server/VERCEL.md`](apps/server/VERCEL.md)。
 
-## GitHub Pages 演示
+## 在线访问
 
-推送到 `main` 后，GitHub Actions 会将用户端发布到 `/client/`，管理端发布到 `/admin/`，项目首页会提供入口和演示账号。Pages 构建使用浏览器本地 mock 数据：账号和聊天操作只在当前浏览器中演示，不连接 Node API、数据库或 XMPP 服务。服务端部署在 Vercel，使用 Neon Postgres 保存业务数据，并使用 Upstash Redis 共享会话和实时广播。
-
-### 在线访问
+推送到 `main` 后，GitHub Actions 会将静态用户端发布到 `/client/`，管理端发布到 `/admin/`。两端的账号、房间、历史消息、举报和实时聊天都连接到 Vercel Server；业务数据持久化在 Neon Postgres，XMPP 会话和跨实例消息广播使用 Upstash Redis。
 
 - [项目入口（GitHub Pages）](https://wkylin.github.io/chat-platform/)
 - [用户端](https://wkylin.github.io/chat-platform/client/)
@@ -51,14 +49,14 @@ pnpm dev:admin
 - [Server 服务页（Vercel）](https://match-chat-server-seven.vercel.app)
 - [Server API 健康检查](https://match-chat-server-seven.vercel.app/api/health)
 
-GitHub Pages 演示登录账号：
+Server 演示账号：
 
 | 系统 | 用户名 | 密码 |
 | --- | --- | --- |
 | 用户端 | `guest` | `guest123!` |
-| 管理端 | `admin` | `admin123!` |
+| 管理端 | `admin` | Vercel 项目的 `IM_ADMIN_PASSWORD` |
 
-用户端和管理端在 Pages 上使用浏览器本地 mock 数据；Server 无需登录，健康检查链接可用于确认服务在线。云端 Server 的部署说明、数据库和 Redis 配置见 [`apps/server/VERCEL.md`](apps/server/VERCEL.md)。
+Server 无需登录，健康检查链接可用于确认服务在线。GitHub Pages 只托管静态前端，API 和 WebSocket 均使用 Vercel 服务地址。云端 Server 的部署说明、数据库和 Redis 配置见 [`apps/server/VERCEL.md`](apps/server/VERCEL.md)。
 
 手动构建 Pages 静态文件：
 

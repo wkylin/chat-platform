@@ -68,7 +68,7 @@
             </div>
           </Listbox>
         </div>
-        <p class="auth-card__foot">{{ demoMode ? (locale === "zh-CN" ? "演示账号：guest / guest123!" : "Demo account: guest / guest123!") : `${copy.localDemo} · API ${apiOrigin}` }}</p>
+        <p class="auth-card__foot">{{ locale === "zh-CN" ? `服务端 API · ${apiOrigin} · 演示账号 guest / guest123!` : `Server API · ${apiOrigin} · Demo account guest / guest123!` }}</p>
       </form>
     </section>
 
@@ -213,7 +213,7 @@ const errorMessage = ref("");
 const busy = ref(false);
 const showCreateRoom = ref(false);
 const authMode = ref<"login" | "register">("login");
-const authForm = reactive({ username: demoMode ? "guest" : "", displayName: "", password: demoMode ? "guest123!" : "" });
+const authForm = reactive({ username: "guest", displayName: "", password: "guest123!" });
 const roomForm = reactive({ name: "", description: "" });
 const connectionStatus = ref<XmppConnectionStatus>("offline");
 const xmpp = new XmppChatClient({
