@@ -63,13 +63,42 @@ export interface OverviewRecord {
   openReports: number;
 }
 
+export type Awaitable<T> = T | Promise<T>;
+
+/** Shared contract for the local SQLite and hosted PostgreSQL stores. */
+export interface ChatDatabase {
+  ensureReady(): Awaitable<void>;
+  close(): Awaitable<void>;
+  createUser(username: string, password: string, displayName: string, role?: Role): Awaitable<UserRecord>;
+  findUser(userId: string): Awaitable<UserRecord | null>;
+  findUserByUsername(username: string): Awaitable<UserRecord | null>;
+  authenticate(username: string, password: string): Awaitable<UserRecord | null>;
+  listUsers(): Awaitable<UserRecord[]>;
+  setUserStatus(userId: string, status: UserStatus): Awaitable<UserRecord | null>;
+  createRoom(name: string, description: string, ownerId: string): Awaitable<RoomRecord>;
+  getRoom(roomId: string): Awaitable<RoomRecord | null>;
+  listRooms(): Awaitable<RoomRecord[]>;
+  setRoomStatus(roomId: string, status: RoomStatus): Awaitable<RoomRecord | null>;
+  joinRoom(roomId: string, userId: string): Awaitable<RoomRecord | null>;
+  isMember(roomId: string, userId: string): Awaitable<boolean>;
+  listMessages(roomId: string, limit?: number): Awaitable<MessageRecord[]>;
+  findMessage(messageId: string): Awaitable<MessageRecord | null>;
+  createMessage(roomId: string, userId: string, body: string): Awaitable<MessageRecord>;
+  setMessageStatus(messageId: string, status: MessageStatus): Awaitable<MessageRecord | null>;
+  createReport(messageId: string, roomId: string, reporterId: string, reason: string): Awaitable<ReportRecord>;
+  findReport(reportId: string): Awaitable<ReportRecord | null>;
+  listReports(status?: string): Awaitable<ReportRecord[]>;
+  reviewReport(reportId: string, status: ReportStatus, note: string): Awaitable<ReportRecord | null>;
+  overview(): Awaitable<OverviewRecord>;
+}
+
 type Row = Record<string, unknown>;
 
 function now(): string {
   return new Date().toISOString();
 }
 
-function id(prefix: string): string {
+export function createId(prefix: string): string {
   return `${prefix}_${randomUUID().replaceAll("-", "").slice(0, 16)}`;
 }
 
@@ -81,13 +110,13 @@ function numberValue(value: unknown): number {
   return typeof value === "number" ? value : Number(value) || 0;
 }
 
-function passwordHash(password: string): string {
+export function passwordHash(password: string): string {
   const salt = randomUUID();
   const digest = scryptSync(password, salt, 64).toString("hex");
   return `${salt}:${digest}`;
 }
 
-function passwordMatches(password: string, stored: string): boolean {
+export function passwordMatches(password: string, stored: string): boolean {
   const [salt, expected] = stored.split(":");
   if (!salt || !expected) return false;
   const actual = scryptSync(password, salt, 64);
@@ -99,7 +128,7 @@ export function roomJid(roomId: string, domain = "im.localhost"): string {
   return `room-${roomId}@conference.${domain}`;
 }
 
-export class ChatDatabase {
+export class SQLiteChatDatabase implements ChatDatabase {
   private readonly database: DatabaseSync;
   private readonly domain: string;
 
@@ -157,9 +186,11 @@ export class ChatDatabase {
     this.seed(adminUsername, adminPassword);
   }
 
+  ensureReady(): void {}
+
   private seed(adminUsername: string, adminPassword: string): void {
     const admin = this.findUserByUsername(adminUsername);
-    const adminId = admin?.id ?? id("usr");
+    const adminId = admin?.id ?? createId("usr");
     if (!admin) {
       this.database
         .prepare(
@@ -173,7 +204,7 @@ export class ChatDatabase {
     }
     const count = numberValue(this.database.prepare("SELECT COUNT(*) AS count FROM rooms").get()?.count);
     if (!count) {
-      const roomId = id("room");
+      const roomId = createId("room");
       this.database
         .prepare(
           `INSERT INTO rooms (id, name, description, owner_id, status, created_at)
@@ -193,7 +224,7 @@ export class ChatDatabase {
   }
 
   createUser(username: string, password: string, displayName: string, role: Role = "user"): UserRecord {
-    const userId = id("usr");
+    const userId = createId("usr");
     const createdAt = now();
     this.database
       .prepare(
@@ -230,7 +261,7 @@ export class ChatDatabase {
   }
 
   createRoom(name: string, description: string, ownerId: string): RoomRecord {
-    const roomId = id("room");
+    const roomId = createId("room");
     this.database
       .prepare("INSERT INTO rooms (id, name, description, owner_id, status, created_at) VALUES (?, ?, ?, ?, 'active', ?)")
       .run(roomId, name, description, ownerId, now());
@@ -298,7 +329,7 @@ export class ChatDatabase {
   }
 
   createMessage(roomId: string, userId: string, body: string): MessageRecord {
-    const messageId = id("msg");
+    const messageId = createId("msg");
     this.database.prepare("INSERT INTO messages (id, room_id, user_id, body, status, created_at) VALUES (?, ?, ?, ?, 'visible', ?)").run(messageId, roomId, userId, body, now());
     return this.findMessage(messageId)!;
   }
@@ -309,7 +340,7 @@ export class ChatDatabase {
   }
 
   createReport(messageId: string, roomId: string, reporterId: string, reason: string): ReportRecord {
-    const reportId = id("rpt");
+    const reportId = createId("rpt");
     this.database.prepare("INSERT INTO reports (id, message_id, room_id, reporter_id, reason, status, created_at) VALUES (?, ?, ?, ?, ?, 'open', ?)").run(reportId, messageId, roomId, reporterId, reason, now());
     return this.findReport(reportId)!;
   }

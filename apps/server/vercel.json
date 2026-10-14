@@ -1,8 +1,16 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "outputDirectory": "public",
+  "regions": ["sin1"],
   "functions": {
     "api/[...path].ts": {
       "maxDuration": 300
     }
-  }
+  },
+  "rewrites": [
+    {
+      "source": "/api/:first/:rest*",
+      "destination": "/api/:first"
+    }
+  ]
 }

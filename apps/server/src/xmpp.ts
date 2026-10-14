@@ -1,7 +1,8 @@
 import { randomBytes, randomUUID } from "node:crypto";
 import type { IncomingMessage, Server } from "node:http";
+import { Redis } from "@upstash/redis";
 import { WebSocketServer, WebSocket, type RawData } from "ws";
-import { ChatDatabase, roomJid, type UserRecord } from "./db.js";
+import type { ChatDatabase, UserRecord } from "./db.js";
 import type { ServerConfig } from "./config.js";
 
 const STREAM_NAMESPACE = "http://etherx.jabber.org/streams";
@@ -115,7 +116,7 @@ function extractStanzas(input: string): { stanzas: string[]; rest: string } {
   return { stanzas, rest: "" };
 }
 
-interface SessionRecord {
+export interface SessionRecord {
   id: string;
   userId: string;
   username: string;
@@ -123,12 +124,20 @@ interface SessionRecord {
   expiresAt: number;
 }
 
-export class XmppSessionRegistry {
+export interface XmppSessionStore {
+  readonly lifetime: number;
+  create(user: UserRecord): Promise<SessionRecord>;
+  authenticate(username: string, credential: string): Promise<SessionRecord | null>;
+  revoke(sessionId: string): Promise<void>;
+  revokeUser(userId: string): Promise<void>;
+}
+
+export class XmppSessionRegistry implements XmppSessionStore {
   private readonly sessions = new Map<string, SessionRecord>();
 
   constructor(private readonly lifetimeSeconds: number) {}
 
-  create(user: UserRecord): SessionRecord {
+  async create(user: UserRecord): Promise<SessionRecord> {
     const session: SessionRecord = {
       id: `im_${randomUUID().replaceAll("-", "").slice(0, 18)}`,
       userId: user.id,
@@ -140,7 +149,7 @@ export class XmppSessionRegistry {
     return session;
   }
 
-  authenticate(username: string, credential: string): SessionRecord | null {
+  async authenticate(username: string, credential: string): Promise<SessionRecord | null> {
     const session = this.sessions.get(username);
     if (!session || session.expiresAt < Date.now() || session.credential !== credential) {
       if (session?.expiresAt && session.expiresAt < Date.now()) this.sessions.delete(username);
@@ -149,16 +158,97 @@ export class XmppSessionRegistry {
     return session;
   }
 
-  revoke(sessionId: string): void {
+  async revoke(sessionId: string): Promise<void> {
     this.sessions.delete(sessionId);
   }
 
-  revokeUser(userId: string): void {
+  async revokeUser(userId: string): Promise<void> {
     for (const [id, session] of this.sessions) if (session.userId === userId) this.sessions.delete(id);
   }
 
   get lifetime(): number {
     return this.lifetimeSeconds;
+  }
+}
+
+export class RedisXmppSessionRegistry implements XmppSessionStore {
+  constructor(private readonly redis: Redis, private readonly lifetimeSeconds: number) {}
+
+  async create(user: UserRecord): Promise<SessionRecord> {
+    const session: SessionRecord = {
+      id: `im_${randomUUID().replaceAll("-", "").slice(0, 18)}`,
+      userId: user.id,
+      username: user.username,
+      credential: randomBytes(24).toString("base64url"),
+      expiresAt: Date.now() + this.lifetimeSeconds * 1000,
+    };
+    await this.redis.set(this.sessionKey(session.id), session, { ex: this.lifetimeSeconds });
+    await this.redis.sadd(this.userSessionsKey(user.id), session.id);
+    await this.redis.expire(this.userSessionsKey(user.id), this.lifetimeSeconds);
+    return session;
+  }
+
+  async authenticate(username: string, credential: string): Promise<SessionRecord | null> {
+    const session = await this.redis.get<SessionRecord>(this.sessionKey(username));
+    if (!session || session.expiresAt < Date.now() || session.credential !== credential) return null;
+    return session;
+  }
+
+  async revoke(sessionId: string): Promise<void> {
+    const session = await this.redis.get<SessionRecord>(this.sessionKey(sessionId));
+    await this.redis.del(this.sessionKey(sessionId));
+    if (session) await this.redis.srem(this.userSessionsKey(session.userId), sessionId);
+  }
+
+  async revokeUser(userId: string): Promise<void> {
+    const sessionIds = await this.redis.smembers<string[]>(this.userSessionsKey(userId));
+    await Promise.all([
+      ...sessionIds.map((sessionId) => this.redis.del(this.sessionKey(sessionId))),
+      this.redis.del(this.userSessionsKey(userId)),
+    ]);
+  }
+
+  get lifetime(): number {
+    return this.lifetimeSeconds;
+  }
+
+  private sessionKey(sessionId: string): string {
+    return `match-chat:im-session:${sessionId}`;
+  }
+
+  private userSessionsKey(userId: string): string {
+    return `match-chat:im-user-sessions:${userId}`;
+  }
+}
+
+interface ChatEvent {
+  gatewayId: string;
+  roomId: string;
+  kind: "message" | "presence";
+  payload: string;
+}
+
+export class RedisChatEventBroker {
+  constructor(private readonly redis: Redis) {}
+
+  publish(event: ChatEvent): Promise<number> {
+    return this.redis.publish("match-chat:xmpp-events", JSON.stringify(event));
+  }
+
+  subscribe(handler: (event: ChatEvent) => void): void {
+    const subscription = this.redis.subscribe<string>(["match-chat:xmpp-events"]);
+    subscription.on("message", ({ message }) => {
+      try {
+        const event = JSON.parse(message) as ChatEvent;
+        if (event && typeof event.gatewayId === "string" && typeof event.roomId === "string" &&
+            (event.kind === "message" || event.kind === "presence") && typeof event.payload === "string") {
+          handler(event);
+        }
+      } catch (cause) {
+        console.error("[xmpp] invalid shared event", cause);
+      }
+    });
+    subscription.on("error", (cause) => console.error("[xmpp] shared event subscription failed", cause));
   }
 }
 
@@ -171,6 +261,7 @@ interface XmppConnection {
   fullJid: string;
   nickname: string;
   joinedRooms: Set<string>;
+  queue: Promise<void>;
 }
 
 function roomIdFromJid(jid: string): string | null {
@@ -187,15 +278,21 @@ export class XmppGateway {
   private readonly gateway: WebSocketServer;
   private readonly connections = new Set<XmppConnection>();
   private readonly roomConnections = new Map<string, Set<XmppConnection>>();
+  private readonly gatewayId = randomUUID();
 
   constructor(
     server: Server,
     private readonly database: ChatDatabase,
-    private readonly sessions: XmppSessionRegistry,
+    private readonly sessions: XmppSessionStore,
     private readonly config: ServerConfig,
+    private readonly broker?: RedisChatEventBroker,
   ) {
     this.gateway = new WebSocketServer({ noServer: true });
     server.on("upgrade", (request, socket, head) => this.handleUpgrade(request, socket, head));
+    this.broker?.subscribe((event) => {
+      if (event.gatewayId === this.gatewayId) return;
+      for (const connection of this.roomConnections.get(event.roomId) || []) this.send(connection, event.payload);
+    });
   }
 
   private handleUpgrade(
@@ -218,11 +315,12 @@ export class XmppGateway {
         fullJid: "",
         nickname: "",
         joinedRooms: new Set(),
+        queue: Promise.resolve(),
       };
       this.connections.add(connection);
       websocket.on("message", (raw) => this.receive(connection, toText(raw)));
-      websocket.on("close", () => this.cleanup(connection));
-      websocket.on("error", () => this.cleanup(connection));
+      websocket.on("close", () => void this.cleanup(connection).catch((cause) => console.error("[xmpp] cleanup failed", cause)));
+      websocket.on("error", () => void this.cleanup(connection).catch((cause) => console.error("[xmpp] cleanup failed", cause)));
     });
   }
 
@@ -233,20 +331,24 @@ export class XmppGateway {
     if (process.env.IM_DEBUG_XMPP === "1" && result.stanzas.length) {
       console.log("[xmpp] inbound", result.stanzas.map((stanza) => stanza.slice(0, 80)));
     }
-    for (const stanza of result.stanzas) void this.handleStanza(connection, stanza);
+    for (const stanza of result.stanzas) {
+      connection.queue = connection.queue
+        .then(() => this.handleStanza(connection, stanza))
+        .catch((cause) => console.error("[xmpp] stanza handling failed", cause));
+    }
   }
 
   private async handleStanza(connection: XmppConnection, stanza: string): Promise<void> {
     if (stanza.startsWith("<open")) {
       this.handleOpen(connection, stanza);
     } else if (stanza.startsWith("<auth")) {
-      this.handleAuth(connection, stanza);
+      await this.handleAuth(connection, stanza);
     } else if (stanza.startsWith("<iq")) {
       this.handleIq(connection, stanza);
     } else if (stanza.startsWith("<presence")) {
-      this.handlePresence(connection, stanza);
+      await this.handlePresence(connection, stanza);
     } else if (stanza.startsWith("<message")) {
-      this.handleMessage(connection, stanza);
+      await this.handleMessage(connection, stanza);
     } else if (stanza.startsWith("<close")) {
       await this.closeConnection(connection);
     }
@@ -266,7 +368,7 @@ export class XmppGateway {
     }
   }
 
-  private handleAuth(connection: XmppConnection, stanza: string): void {
+  private async handleAuth(connection: XmppConnection, stanza: string): Promise<void> {
     if (connection.phase !== "await-auth") return;
     const mechanism = attribute(stanza, "mechanism");
     const encoded = childText(stanza, "auth") || stanza.replace(/^<[\s\S]*?>/, "").replace(/<\/auth>$/, "");
@@ -283,8 +385,8 @@ export class XmppGateway {
     } catch {
       // Invalid base64 is handled as an authentication failure below.
     }
-    const session = this.sessions.authenticate(username, credential);
-    const user = session ? this.database.findUser(session.userId) : null;
+    const session = await this.sessions.authenticate(username, credential);
+    const user = session ? await this.database.findUser(session.userId) : null;
     if (!session || !user || user.status !== "active") {
       this.send(connection, `<failure xmlns="${SASL_NAMESPACE}"><not-authorized/></failure>`);
       return;
@@ -314,22 +416,22 @@ export class XmppGateway {
     }
   }
 
-  private handlePresence(connection: XmppConnection, stanza: string): void {
+  private async handlePresence(connection: XmppConnection, stanza: string): Promise<void> {
     if (connection.phase !== "bound" || !connection.user) return;
     const target = attribute(stanza, "to");
     const roomId = roomIdFromJid(target);
     if (!roomId) return;
-    const room = this.database.getRoom(roomId);
+    const room = await this.database.getRoom(roomId);
     if (!room || room.status !== "active") {
       this.send(connection, `<presence type="error" to="${escapeXml(connection.fullJid)}"><error type="cancel"><service-unavailable/></error></presence>`);
       return;
     }
     const unavailable = attribute(stanza, "type") === "unavailable";
     if (unavailable) {
-      this.leaveRoom(connection, roomId);
+      await this.leaveRoom(connection, roomId);
       return;
     }
-    this.database.joinRoom(roomId, connection.user.id);
+    await this.database.joinRoom(roomId, connection.user.id);
     connection.joinedRooms.add(roomId);
     let members = this.roomConnections.get(roomId);
     if (!members) {
@@ -338,10 +440,10 @@ export class XmppGateway {
     }
     members.add(connection);
     this.send(connection, `<presence from="${escapeXml(`${room.jid}/${connection.nickname}`)}" to="${escapeXml(connection.fullJid)}"><x xmlns="${MUC_USER_NAMESPACE}"><item affiliation="member" role="participant" jid="${escapeXml(connection.fullJid)}"/><status code="110"/></x></presence>`);
-    this.broadcastPresence(roomId, connection, "available");
+    await this.broadcastPresence(roomId, connection, "available");
   }
 
-  private handleMessage(connection: XmppConnection, stanza: string): void {
+  private async handleMessage(connection: XmppConnection, stanza: string): Promise<void> {
     const target = attribute(stanza, "to");
     const roomId = roomIdFromConnection(connection, target);
     const body = childBody(stanza).trim();
@@ -357,30 +459,41 @@ export class XmppGateway {
     }
     if (connection.phase !== "bound" || !connection.user) return;
     if (!roomId || !body || body.length > this.config.maxMessageLength) return;
-    const room = this.database.getRoom(roomId);
+    const room = await this.database.getRoom(roomId);
     if (!room || room.status !== "active") return;
-    const message = this.database.createMessage(roomId, connection.user.id, body);
+    const message = await this.database.createMessage(roomId, connection.user.id, body);
     const from = `${room.jid}/${connection.nickname}`;
     const payload = `<message from="${escapeXml(from)}" type="groupchat" id="${escapeXml(message.id)}"><body>${escapeXml(message.body)}</body><x xmlns="${META_NAMESPACE}" userId="${escapeXml(message.userId)}" displayName="${escapeXml(message.displayName)}" createdAt="${escapeXml(message.createdAt)}"/></message>`;
     for (const member of this.roomConnections.get(roomId) || []) this.send(member, payload);
+    await this.publishEvent(roomId, "message", payload);
   }
 
-  private broadcastPresence(roomId: string, joining: XmppConnection, type: "available" | "unavailable"): void {
-    const room = this.database.getRoom(roomId);
+  private async broadcastPresence(roomId: string, joining: XmppConnection, type: "available" | "unavailable"): Promise<void> {
+    const room = await this.database.getRoom(roomId);
     if (!room) return;
     const from = `${room.jid}/${joining.nickname}`;
     const payload = `<presence from="${escapeXml(from)}" type="${type}"><x xmlns="${MUC_USER_NAMESPACE}"><item affiliation="member" role="${type === "available" ? "participant" : "none"}" jid="${escapeXml(joining.fullJid)}"/></x></presence>`;
     for (const member of this.roomConnections.get(roomId) || []) if (member !== joining) this.send(member, payload);
+    await this.publishEvent(roomId, "presence", payload);
   }
 
-  private leaveRoom(connection: XmppConnection, roomId: string): void {
+  private async leaveRoom(connection: XmppConnection, roomId: string): Promise<void> {
     const members = this.roomConnections.get(roomId);
     if (members) {
       members.delete(connection);
       if (!members.size) this.roomConnections.delete(roomId);
     }
     connection.joinedRooms.delete(roomId);
-    this.broadcastPresence(roomId, connection, "unavailable");
+    await this.broadcastPresence(roomId, connection, "unavailable");
+  }
+
+  private async publishEvent(roomId: string, kind: ChatEvent["kind"], payload: string): Promise<void> {
+    if (!this.broker) return;
+    try {
+      await this.broker.publish({ gatewayId: this.gatewayId, roomId, kind, payload });
+    } catch (cause) {
+      console.error("[xmpp] shared event publish failed", cause);
+    }
   }
 
   private send(connection: XmppConnection, payload: string): void {
@@ -389,12 +502,12 @@ export class XmppGateway {
 
   private async closeConnection(connection: XmppConnection): Promise<void> {
     await connection.socket.close();
-    this.cleanup(connection);
+    await this.cleanup(connection);
   }
 
-  private cleanup(connection: XmppConnection): void {
+  private async cleanup(connection: XmppConnection): Promise<void> {
     if (!this.connections.delete(connection)) return;
-    for (const roomId of connection.joinedRooms) this.leaveRoom(connection, roomId);
+    for (const roomId of [...connection.joinedRooms]) await this.leaveRoom(connection, roomId);
     // Keep the short-lived credential available for a reconnect. Explicit
     // logout revokes it through DELETE /api/im/session; otherwise the session
     // expires naturally after the configured lifetime.

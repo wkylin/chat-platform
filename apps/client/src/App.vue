@@ -216,7 +216,12 @@ const authMode = ref<"login" | "register">("login");
 const authForm = reactive({ username: demoMode ? "guest" : "", displayName: "", password: demoMode ? "guest123!" : "" });
 const roomForm = reactive({ name: "", description: "" });
 const connectionStatus = ref<XmppConnectionStatus>("offline");
-const xmpp = new XmppChatClient({ onStatus: (status) => (connectionStatus.value = status), onMessage: receiveMessage, onError: (error) => (notice.value = error.message) });
+const xmpp = new XmppChatClient({
+  onStatus: (status) => (connectionStatus.value = status),
+  onMessage: receiveMessage,
+  onError: (error) => (notice.value = error.message),
+  onReconnect: refreshMessagesAfterReconnect,
+});
 
 const connectionLabel = computed(() => copy.value.status[connectionStatus.value]);
 
@@ -331,6 +336,20 @@ function receiveMessage(message: ImChatMessage): void {
   if (!selectedRoom.value || message.roomId !== selectedRoom.value.id) return;
   if (messages.value.some((item) => item.id === message.id)) return;
   messages.value.push(message); selectedRoom.value.messageCount += 1;
+}
+
+async function refreshMessagesAfterReconnect(): Promise<void> {
+  if (demoMode || !selectedRoom.value) return;
+  const roomId = selectedRoom.value.id;
+  try {
+    const result = await request<{ messages: ImChatMessage[] }>(`/rooms/${roomId}/messages`);
+    if (selectedRoom.value?.id !== roomId) return;
+    const unique = new Map<string, ImChatMessage>();
+    for (const message of [...result.messages, ...messages.value]) unique.set(message.id, message);
+    messages.value = [...unique.values()].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+  } catch (error) {
+    notice.value = error instanceof Error ? error.message : "Unable to refresh room history.";
+  }
 }
 
 async function refreshRooms(): Promise<void> { if (demoMode) { notice.value = copy.value.localDemo; return; } const result = await request<{ rooms: ImRoom[] }>("/rooms"); rooms.value = result.rooms; if (selectedRoom.value) selectedRoom.value = rooms.value.find((room) => room.id === selectedRoom.value?.id) || selectedRoom.value; }

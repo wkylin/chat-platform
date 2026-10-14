@@ -42,6 +42,7 @@ export interface XmppChatClientOptions {
   onStatus?: (status: XmppConnectionStatus) => void;
   onMessage?: (message: ImChatMessage) => void;
   onError?: (error: Error) => void;
+  onReconnect?: () => void | Promise<void>;
 }
 
 /**
@@ -53,7 +54,7 @@ export class XmppChatClient {
   private roomJid = "";
   private currentUserId = "";
   private nickname = "";
-  private pendingRoomJoin = false;
+  private hasBeenOnline = false;
   private readonly options: XmppChatClientOptions;
 
   constructor(options: XmppChatClientOptions = {}) {
@@ -86,7 +87,9 @@ export class XmppChatClient {
     client.on("stanza", (stanza) => this.handleStanza(stanza));
     client.on("online", () => {
       this.options.onStatus?.("online");
-      if (this.pendingRoomJoin) void this.joinCurrentRoom();
+      if (this.roomJid) void this.joinCurrentRoom();
+      if (this.hasBeenOnline) void this.options.onReconnect?.();
+      this.hasBeenOnline = true;
     });
     client.on("offline", () => this.options.onStatus?.("offline"));
     client.on("error", (cause) => {
@@ -106,7 +109,8 @@ export class XmppChatClient {
 
   async setRoom(roomJid: string): Promise<void> {
     const nextRoomJid = bareJid(roomJid);
-    if (this.client?.status === "online" && this.roomJid && this.roomJid !== nextRoomJid) {
+    const roomChanged = this.roomJid !== nextRoomJid;
+    if (this.client?.status === "online" && this.roomJid && roomChanged) {
       await this.client.send(
         xml(
           "presence",
@@ -115,8 +119,7 @@ export class XmppChatClient {
       );
     }
     this.roomJid = nextRoomJid;
-    this.pendingRoomJoin = Boolean(this.roomJid);
-    if (this.client?.status === "online") await this.joinCurrentRoom();
+    if (this.client?.status === "online" && this.roomJid && roomChanged) await this.joinCurrentRoom();
   }
 
   async send(body: string): Promise<void> {
@@ -135,7 +138,7 @@ export class XmppChatClient {
   }
 
   async disconnect(): Promise<void> {
-    this.pendingRoomJoin = false;
+    this.hasBeenOnline = false;
     const client = this.client;
     this.client = null;
     if (client) {
@@ -150,7 +153,6 @@ export class XmppChatClient {
 
   private async joinCurrentRoom(): Promise<void> {
     if (!this.client || this.client.status !== "online" || !this.roomJid) return;
-    this.pendingRoomJoin = false;
     await this.client.send(
       xml(
         "presence",

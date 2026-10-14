@@ -4,12 +4,12 @@
 
 - `apps/client`：用户端与可复用 IM Chat Panel 演示
 - `apps/admin`：运营数据、房间管理、消息审核
-- `apps/server`：Node REST API、SQLite 持久化、XMPP WebSocket 网关
+- `apps/server`：Node REST API、SQLite 本地开发 / Neon Postgres 云端持久化、XMPP WebSocket 网关
 - `packages/im-ui`：可嵌入的 Vue IM 组件与 XMPP 客户端封装
 
 ## 启动
 
-服务端使用 Node 内置 `node:sqlite`，请使用 Node.js 22.5+ 与 pnpm。
+本地服务端使用 Node 内置 `node:sqlite`，请使用 Node.js 22.5+ 与 pnpm。Vercel 部署使用 Neon Postgres 与 Upstash Redis 保存共享状态。
 
 ```bash
 pnpm install
@@ -37,11 +37,11 @@ pnpm dev:admin
 密码：guest123!
 ```
 
-生产环境请通过 `IM_JWT_SECRET`、`IM_ADMIN_PASSWORD` 和 `IM_XMPP_WS_URL` 覆盖默认值，并使用 `wss://`。Vercel 部署入口与所需环境变量见 [`apps/server/VERCEL.md`](apps/server/VERCEL.md)；当前临时 SQLite 与进程内会话状态只适合演示，持久化部署需要共享数据库与 Redis。
+生产环境请设置 `IM_JWT_SECRET` 和 `IM_ADMIN_PASSWORD`。Vercel 部署步骤、Neon/Upstash 配置与环境变量见 [`apps/server/VERCEL.md`](apps/server/VERCEL.md)。
 
 ## GitHub Pages 演示
 
-推送到 `main` 后，GitHub Actions 会将用户端发布到 `/client/`，管理端发布到 `/admin/`，项目首页会提供入口和演示账号。Pages 构建使用浏览器本地 mock 数据：账号和聊天操作只在当前浏览器中演示，不连接 Node API、SQLite 或 XMPP 服务。API/XMPP 服务不能由 GitHub Pages 托管，需要另行部署到支持 Node.js 和 WebSocket 的运行环境，例如 Vercel。
+推送到 `main` 后，GitHub Actions 会将用户端发布到 `/client/`，管理端发布到 `/admin/`，项目首页会提供入口和演示账号。Pages 构建使用浏览器本地 mock 数据：账号和聊天操作只在当前浏览器中演示，不连接 Node API、数据库或 XMPP 服务。服务端部署在 Vercel，使用 Neon Postgres 保存业务数据，并使用 Upstash Redis 共享会话和实时广播。
 
 手动构建 Pages 静态文件：
 

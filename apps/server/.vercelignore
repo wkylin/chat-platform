@@ -2,3 +2,6 @@ data/*.sqlite
 data/*.sqlite-shm
 data/*.sqlite-wal
 dist/
+.agents/
+skills-lock.json
+.env*
