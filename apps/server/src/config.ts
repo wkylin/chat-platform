@@ -25,6 +25,7 @@ function numberEnv(name: string, fallback: number): number {
 
 export const config = {
   onVercel,
+  syncAdminPassword: onVercel && process.env.VERCEL_ENV === "production",
   host: process.env.IM_HOST || "127.0.0.1",
   port: numberEnv("IM_PORT", 8787),
   domain: process.env.IM_XMPP_DOMAIN || deploymentHost || "im.localhost",

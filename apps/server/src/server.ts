@@ -8,7 +8,7 @@ import { RedisChatEventBroker, RedisXmppSessionRegistry, XmppGateway, XmppSessio
 
 export function createMatchChatService() {
   const database = config.databaseUrl
-    ? new PostgresChatDatabase(config.databaseUrl, config.domain, config.adminUsername, config.adminPassword)
+    ? new PostgresChatDatabase(config.databaseUrl, config.domain, config.adminUsername, config.adminPassword, config.syncAdminPassword)
     : new SQLiteChatDatabase(config.dataFile, config.domain, config.adminUsername, config.adminPassword);
   const redis = config.redisRestUrl && config.redisRestToken
     ? new Redis({ url: config.redisRestUrl, token: config.redisRestToken, enableTelemetry: false })

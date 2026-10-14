@@ -37,10 +37,10 @@ export class PostgresChatDatabase implements ChatDatabase {
   private readonly domain: string;
   private readonly ready: Promise<void>;
 
-  constructor(connectionString: string, domain: string, adminUsername: string, adminPassword: string) {
+  constructor(connectionString: string, domain: string, adminUsername: string, adminPassword: string, syncAdminPassword = false) {
     this.sql = neon(connectionString);
     this.domain = domain;
-    this.ready = this.initialize(adminUsername, adminPassword);
+    this.ready = this.initialize(adminUsername, adminPassword, syncAdminPassword);
   }
 
   private rawQuery<T extends Row = Row>(query: string, params: unknown[] = []): Promise<T[]> {
@@ -56,7 +56,7 @@ export class PostgresChatDatabase implements ChatDatabase {
     return this.ready;
   }
 
-  private async initialize(adminUsername: string, adminPassword: string): Promise<void> {
+  private async initialize(adminUsername: string, adminPassword: string, syncAdminPassword: boolean): Promise<void> {
     await this.rawQuery(`
       CREATE TABLE IF NOT EXISTS users (
         id TEXT PRIMARY KEY,
@@ -109,11 +109,19 @@ export class PostgresChatDatabase implements ChatDatabase {
       this.rawQuery("CREATE UNIQUE INDEX IF NOT EXISTS users_username_lower_unique ON users (lower(username))"),
     ]);
 
+    const adminPasswordHash = passwordHash(adminPassword);
+    if (syncAdminPassword) {
+      // Production environment variables are the source of truth for the seeded admin password.
+      await this.rawQuery(
+        "UPDATE users SET password_hash = $1 WHERE lower(username) = lower($2) AND role = 'admin'",
+        [adminPasswordHash, adminUsername],
+      );
+    }
     await this.rawQuery(
       `INSERT INTO users (id, username, display_name, password_hash, role, status, created_at)
        VALUES ($1, $2, 'Control Room', $3, 'admin', 'active', $4)
        ON CONFLICT DO NOTHING`,
-      [createId("usr"), adminUsername, passwordHash(adminPassword), now()],
+      [createId("usr"), adminUsername, adminPasswordHash, now()],
     );
     const [admin] = await this.rawQuery<{ id: string }>("SELECT id FROM users WHERE lower(username) = lower($1)", [adminUsername]);
     await this.rawQuery(

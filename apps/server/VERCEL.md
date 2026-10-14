@@ -29,7 +29,7 @@ Add these to the Vercel project (Production, and Preview if preview deployments 
 | Variable | Required | Purpose |
 | --- | --- | --- |
 | `IM_JWT_SECRET` | Yes | Unique random key for signing API login tokens. |
-| `IM_ADMIN_PASSWORD` | Yes | Password for the seeded administrator. |
+| `IM_ADMIN_PASSWORD` | Yes | Password for the seeded administrator. In production, a new deployment applies this value to the existing seeded administrator account. |
 | `IM_ADMIN_USERNAME` | No | Administrator name; defaults to `admin`. |
 | `IM_XMPP_DOMAIN` | No | XMPP domain; defaults to the Vercel production host. |
 | `IM_XMPP_WS_URL` | No | WebSocket URL; defaults to `wss://<production-host>/api/xmpp-websocket`. |
