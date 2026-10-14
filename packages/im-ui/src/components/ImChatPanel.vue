@@ -34,8 +34,8 @@
             {{ copy.report }}
           </button>
         </div>
-        <p class="m-0 mt-1.5 [overflow-wrap:anywhere] whitespace-pre-wrap rounded-[4px_14px_14px_14px] border border-white/10 bg-[#1a1f2a] px-[13px] py-[11px] text-sm leading-6 text-[#e9edf5]"
-          :class="{ 'rounded-[14px_4px_14px_14px] border-transparent bg-[#b6f36b] text-[#12151e]': message.userId === currentUserId || message.mine }">
+        <p class="im-chat-message m-0 mt-1.5 [overflow-wrap:anywhere] whitespace-pre-wrap rounded-[4px_14px_14px_14px] border border-white/10 bg-[#1a1f2a] px-[13px] py-[11px] text-sm leading-6 text-[#e9edf5]"
+          :class="{ 'im-chat-message--mine rounded-[14px_4px_14px_14px] border-transparent bg-[#b6f36b]': message.userId === currentUserId || message.mine }">
           {{ message.status === "removed" ? copy.removedMessage : message.body }}</p>
       </article>
     </div>
@@ -126,3 +126,10 @@ watch(
   },
 );
 </script>
+
+<style scoped>
+.im-chat-message--mine {
+  color: #172112;
+  font-weight: 500;
+}
+</style>
