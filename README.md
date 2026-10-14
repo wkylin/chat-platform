@@ -43,6 +43,23 @@ pnpm dev:admin
 
 推送到 `main` 后，GitHub Actions 会将用户端发布到 `/client/`，管理端发布到 `/admin/`，项目首页会提供入口和演示账号。Pages 构建使用浏览器本地 mock 数据：账号和聊天操作只在当前浏览器中演示，不连接 Node API、数据库或 XMPP 服务。服务端部署在 Vercel，使用 Neon Postgres 保存业务数据，并使用 Upstash Redis 共享会话和实时广播。
 
+### 在线访问
+
+- [项目入口（GitHub Pages）](https://wkylin.github.io/chat-platform/)
+- [用户端](https://wkylin.github.io/chat-platform/client/)
+- [管理端](https://wkylin.github.io/chat-platform/admin/)
+- [Server 服务页（Vercel）](https://match-chat-server-seven.vercel.app)
+- [Server API 健康检查](https://match-chat-server-seven.vercel.app/api/health)
+
+GitHub Pages 演示登录账号：
+
+| 系统 | 用户名 | 密码 |
+| --- | --- | --- |
+| 用户端 | `guest` | `guest123!` |
+| 管理端 | `admin` | `admin123!` |
+
+用户端和管理端在 Pages 上使用浏览器本地 mock 数据；Server 无需登录，健康检查链接可用于确认服务在线。云端 Server 的部署说明、数据库和 Redis 配置见 [`apps/server/VERCEL.md`](apps/server/VERCEL.md)。
+
 手动构建 Pages 静态文件：
 
 ```bash
