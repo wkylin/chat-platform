@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="从登录、SASL、MUC 入群到先落库再广播，拆开一个 Vue 与 Node 实现的 XMPP 群聊平台。">
+  <title>Match Chat 技术拆解：REST 管业务，XMPP 跑实时群聊</title>
+  <style>
+    :root { color-scheme: light; --ink: #17293b; --muted: #607083; --paper: #f3f6f7; --line: #dce5e8; --teal: #087f85; --coral: #eb806b; --navy: #10253b; }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--paper); color: var(--ink); font-family: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif; -webkit-font-smoothing: antialiased; }
+    a { color: var(--teal); text-decoration-thickness: .075em; text-underline-offset: .16em; }
+    a:hover { color: #075e67; }
+    a:focus-visible, button:focus-visible { outline: 3px solid var(--coral); outline-offset: 4px; }
+    .site-header { display: flex; align-items: center; justify-content: space-between; gap: 20px; height: 64px; padding: 0 max(24px, calc((100vw - 1260px) / 2)); background: #fff; border-bottom: 1px solid var(--line); }
+    .brand { color: var(--navy); font: 700 12px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; text-decoration: none; }
+    .brand strong { color: var(--teal); }
+    .site-header .source-link { font-size: 12px; font-weight: 700; text-decoration: none; }
+    .hero { position: relative; overflow: hidden; background: var(--navy); color: #f6fbff; }
+    .hero::before { content: ""; position: absolute; inset: 0; opacity: .24; background-image: linear-gradient(to right, transparent 0, transparent calc(100% - 1px), #7ca6b0 calc(100% - 1px)), linear-gradient(to bottom, transparent 0, transparent calc(100% - 1px), #7ca6b0 calc(100% - 1px)); background-size: 42px 42px; mask-image: linear-gradient(to right, transparent 10%, #000 100%); }
+    .hero-inner { position: relative; display: grid; grid-template-columns: minmax(0, 1fr) 250px; gap: 56px; max-width: 1200px; margin: auto; padding: 76px 24px 82px; }
+    .eyebrow { margin: 0 0 23px; color: #8ce0dc; font: 700 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .16em; }
+    h1 { max-width: 800px; margin: 0; font: 700 clamp(39px, 5.2vw, 70px)/1.18 "Songti SC", "Noto Serif CJK SC", "STSong", serif; letter-spacing: -.045em; }
+    .standfirst { max-width: 720px; margin: 24px 0 0; color: #d3e3e8; font-size: clamp(16px, 1.8vw, 19px); line-height: 1.85; }
+    .hero-meta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 28px; color: #adc8d1; font: 600 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .hero-meta span { border: 1px solid #4d7182; padding: 7px 10px; border-radius: 4px; }
+    .stanza-rail { align-self: center; display: grid; gap: 14px; border-left: 1px solid #4c697a; padding-left: 24px; transform: rotate(-3deg); }
+    .stanza-rail span { display: block; width: fit-content; padding: 9px 12px; border: 1px solid #58798a; border-radius: 4px; color: #9dc6d0; background: #183249; font: 600 13px/1.2 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .stanza-rail span:nth-child(3) { color: #ffb29f; border-color: #bf776a; }
+    .stanza-rail span:last-child { color: #adede4; border-color: #5baba9; }
+    .page-grid { display: grid; grid-template-columns: 220px minmax(0, 760px); gap: 64px; max-width: 1200px; margin: auto; padding: 64px 24px 120px; align-items: start; }
+    .toc { position: sticky; top: 28px; border-top: 2px solid var(--navy); padding-top: 18px; }
+    .toc-label { margin: 0 0 20px; color: var(--muted); font: 700 11px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .12em; }
+    .toc a { display: grid; grid-template-columns: 26px 1fr; gap: 7px; padding: 9px 0; color: #43596e; font-size: 13px; line-height: 1.4; text-decoration: none; }
+    .toc a:hover { color: var(--teal); }
+    .toc a span { color: #8396a4; font: 600 11px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    article { min-width: 0; font-size: 16px; line-height: 1.95; }
+    article > p { margin: 0 0 24px; }
+    article > p:first-child { font-size: 18px; font-weight: 500; line-height: 1.9; }
+    article strong { color: #0d4758; }
+    article h2 { display: flex; align-items: baseline; gap: 16px; scroll-margin-top: 32px; margin: 74px 0 24px; padding-top: 22px; border-top: 1px solid #cbd8de; color: #122b40; font: 700 clamp(26px, 3vw, 34px)/1.4 "Songti SC", "Noto Serif CJK SC", "STSong", serif; letter-spacing: -.025em; }
+    .section-index { color: var(--coral); font: 700 13px/1.4 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    article p code { padding: 2px 5px; border-radius: 4px; color: #a33837; background: #e8eef0; font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; overflow-wrap: anywhere; }
+    figure { margin: 32px 0 36px; }
+    figure img { display: block; width: 100%; height: auto; border: 1px solid #d1dce0; border-radius: 10px; background: #e6ecf0; box-shadow: 0 18px 42px rgba(14, 41, 63, .09); }
+    figcaption { margin-top: 11px; color: #637689; font-size: 12px; line-height: 1.6; }
+    .code-card { overflow: hidden; margin: 30px 0 34px; border: 1px solid #314b5d; border-radius: 9px; background: #10263a; box-shadow: 0 14px 28px rgba(20, 41, 56, .1); }
+    .code-card-head { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 11px 17px; border-bottom: 1px solid #314b5d; color: #92adba; font: 600 10px/1.3 ui-monospace, SFMono-Regular, Menlo, monospace; letter-spacing: .09em; }
+    .code-card-head b { color: #81d9cf; }
+    .copy-code { padding: 5px 8px; border: 1px solid #527181; border-radius: 4px; background: transparent; color: #c8e0e6; cursor: pointer; font: inherit; letter-spacing: 0; }
+    .copy-code:hover { border-color: #9be4dd; color: #fff; }
+    pre { overflow-x: auto; margin: 0; padding: 17px 20px 19px 0; color: #e7f2f2; font: 12.5px/1.75 ui-monospace, SFMono-Regular, Menlo, Monaco, monospace; tab-size: 2; }
+    pre code { display: block; min-width: max-content; counter-reset: code-line; }
+    .code-line { display: block; padding-right: 20px; }
+    .code-line::before { content: attr(data-line); display: inline-block; width: 34px; margin-right: 18px; color: #638397; text-align: right; user-select: none; }
+    .site-footer { border-top: 1px solid var(--line); padding: 27px 24px 32px; color: #697d8d; background: #fff; text-align: center; font: 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace; }
+    @media (max-width: 920px) { .hero-inner { grid-template-columns: 1fr; padding-top: 64px; } .stanza-rail { display: none; } .page-grid { display: block; max-width: 780px; padding-top: 42px; } .toc { display: none; } }
+    @media (max-width: 560px) { .site-header { height: 58px; gap: 8px; } .brand { font-size: 10px; letter-spacing: .03em; white-space: nowrap; } .site-header .source-link { font-size: 11px; white-space: nowrap; } .hero-inner { padding: 51px 20px 59px; } .page-grid { padding: 32px 20px 85px; } article { font-size: 15px; } article h2 { margin-top: 54px; } pre { font-size: 11.5px; } }
+    @media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+  </style>
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="../../README.md">MATCH<strong>/</strong>CHAT &nbsp; FIELD NOTES</a><a class="source-link" href="match-chat-xmpp.md">查看 Markdown 原文 ↗</a></header>
+  <section class="hero"><div class="hero-inner"><div><p class="eyebrow">PROTOCOL NOTES / 2026-10-22</p><h1>Match Chat 技术拆解：REST 管业务，XMPP 跑实时群聊</h1><p class="standfirst">聊天需求通常写得很短：“消息要实时。”真正动手时，这五个字会长出鉴权、入群、跨实例广播、断线补偿和内容审核。消息发出前是一行文字，发出后就像一个需要户口、车票和行程记录的旅客。</p><div class="hero-meta"><span>XMPP over WebSocket</span><span>Vue + Node</span><span>源码实录</span></div></div><div class="stanza-rail" aria-hidden="true"><span>&lt;open/&gt;</span><span>&lt;auth/&gt;</span><span>&lt;presence/&gt;</span><span>&lt;message/&gt;</span></div></div></section>
+  <div class="page-grid"><nav class="toc" aria-label="文章目录"><p class="toc-label">ON THIS PAGE</p><a href="#section-1"><span>01</span>一张图看清边界</a>
+<a href="#section-2"><span>02</span>从登录到入群：先换票，再上车</a>
+<a href="#section-3"><span>03</span>一条消息的行程：数据库盖章，Redis 喊话</a>
+<a href="#section-4"><span>04</span>一套数据库接口，两种时间观念</a>
+<a href="#section-5"><span>05</span>断线补账：实时通道不负责记账本</a>
+<a href="#section-6"><span>06</span>管理端：聊天之外还有秩序</a>
+<a href="#section-7"><span>07</span>本地跑起来，再决定下一步</a></nav><article><p>Match Chat 是一个可运行的群聊平台：Vue 用户端负责聊天，Vue 管理端负责房间和举报，Node 服务同时提供 REST API 与 XMPP over WebSocket 网关，<code>packages/im-ui</code> 则把聊天面板和 XMPP 客户端封装成可复用组件。它最有意思的选择，是让 <strong>REST 管持久业务，XMPP 管实时会话</strong>。两条路各司其职，断线时再汇合。</p>
+<p><strong>项目预览：</strong><a href="https://wkylin.github.io/chat-platform/client/" target="_blank" rel="noopener noreferrer">用户端</a> · <a href="https://wkylin.github.io/chat-platform/admin/" target="_blank" rel="noopener noreferrer">管理端</a> · <a href="https://match-chat-server-seven.vercel.app/api/health" target="_blank" rel="noopener noreferrer">服务健康检查</a>。用户端可用公开演示账号 <code>guest</code> / <code>guest123!</code>；管理端密码由部署环境的 <code>IM_ADMIN_PASSWORD</code> 配置。</p>
+<figure><img src="assets/client-workspace.webp" alt="中文用户端的 Signal Commons 实时群聊工作台"></figure>
+<p><em>图 1：用户端实拍。登录后可选择房间、读取历史消息，并通过 XMPP WebSocket 收发新消息。</em></p>
+<h2 id="section-1"><span class="section-index">01</span>一张图看清边界</h2>
+<figure><img src="assets/architecture.svg" alt="Match Chat 系统架构：两个 Vue 前端、REST、XMPP 网关、持久化与 Redis"></figure>
+<p>用户端与管理端都是静态前端，GitHub Pages 只负责送出页面。账号、房间、历史、举报和审核请求进入 REST API；消息与入群 presence 则走 XMPP WebSocket。服务在本地使用 Node 内置 SQLite；配置 <code>DATABASE_URL</code> 后换成 Neon PostgreSQL。生产环境再用 Upstash Redis 保存 XMPP 会话并在多个网关实例之间转发房间事件。入口选择写在 <a href="../../apps/server/src/server.ts"><code>server.ts</code></a>，所以前端组件不必知道数据库今天住在哪座楼。</p>
+<p>这里有一条刻意保留的协议边界：浏览器使用标准 <code>@xmpp/client</code>，Node 网关实现本项目需要的 RFC 7395 WebSocket framing、SASL PLAIN、资源绑定和 MUC 群聊流程。它是<strong>最小 XMPP 网关</strong>，不是通用 XMPP 服务器。想把它当完整 Prosody 用，协议扩展大概会先举手抗议。</p>
+<h2 id="section-2"><span class="section-index">02</span>从登录到入群：先换票，再上车</h2>
+<p>浏览器先用 <code>/api/auth/login</code> 取得 REST JWT，再调用 <code>/api/im/session</code> 换一张独立的 XMPP 会话票。会话凭证由 24 字节随机数编码而成，默认有效期与 API JWT 一样是七天；生产环境的会话记录存进 Redis，并可按用户批量撤销。这样，WebSocket 的 SASL 认证使用的是会话凭证，而不是把 REST JWT 直接塞进聊天协议里。</p>
+<p>代码预览，摘自 <a href="../../apps/server/src/xmpp.ts"><code>xmpp.ts</code></a>：</p>
+<div class="code-card"><div class="code-card-head"><span>CODE PREVIEW <b>TS</b></span><button type="button" class="copy-code" aria-label="复制代码">复制代码</button></div><pre><code><span class="code-line" data-line="1">const session: SessionRecord = {</span>
+<span class="code-line" data-line="2">  id: `im_${randomUUID().replaceAll(&quot;-&quot;, &quot;&quot;).slice(0, 18)}`,</span>
+<span class="code-line" data-line="3">  userId: user.id,</span>
+<span class="code-line" data-line="4">  username: user.username,</span>
+<span class="code-line" data-line="5">  credential: randomBytes(24).toString(&quot;base64url&quot;),</span>
+<span class="code-line" data-line="6">  expiresAt: Date.now() + this.lifetimeSeconds * 1000,</span>
+<span class="code-line" data-line="7">};</span></code></pre></div>
+<p>接下来，<code>@xmpp/client</code> 通过 WebSocket 发 <code>&lt;open/&gt;</code>，网关给出 SASL PLAIN 机制；认证成功后重新开流、绑定资源，客户端才发送 MUC presence 加入房间。网关用 <code>await-open → await-auth → await-restart → await-bind → bound</code> 这组状态管理握手。每条连接还有一条 Promise 队列，让收到的 stanza 顺序进入处理函数，避免异步查库把“先入群、后发言”处理成反过来：</p>
+<div class="code-card"><div class="code-card-head"><span>CODE PREVIEW <b>TS</b></span><button type="button" class="copy-code" aria-label="复制代码">复制代码</button></div><pre><code><span class="code-line" data-line="1">for (const stanza of result.stanzas) {</span>
+<span class="code-line" data-line="2">  connection.queue = connection.queue</span>
+<span class="code-line" data-line="3">    .then(() =&gt; this.handleStanza(connection, stanza))</span>
+<span class="code-line" data-line="4">    .catch((cause) =&gt; console.error(&quot;[xmpp] stanza handling failed&quot;, cause));</span>
+<span class="code-line" data-line="5">}</span></code></pre></div>
+<p>这段节选来自 <a href="../../apps/server/src/xmpp.ts"><code>XmppGateway.receive()</code></a>。队列保证<strong>同一连接的处理顺序</strong>；它不声称为不同用户、不同网关建立全局顺序。</p>
+<h2 id="section-3"><span class="section-index">03</span>一条消息的行程：数据库盖章，Redis 喊话</h2>
+<figure><img src="assets/message-flow.svg" alt="群聊消息流程：鉴权、入群、持久化、本机广播、跨实例广播与重连补齐"></figure>
+<p>消息到达网关时，服务先确认连接已绑定、发言者已入房、内容非空且未超过长度上限，再确认房间仍开放。随后写入数据库，拿到服务端生成的消息 ID、时间戳和发送者资料，向本机房间连接广播，最后通过 Redis Pub/Sub 把事件送到其他实例。关键路径在 <a href="../../apps/server/src/xmpp.ts"><code>handleMessage()</code></a>：</p>
+<div class="code-card"><div class="code-card-head"><span>CODE PREVIEW <b>TS</b></span><button type="button" class="copy-code" aria-label="复制代码">复制代码</button></div><pre><code><span class="code-line" data-line="1">if (connection.phase !== &quot;bound&quot; || !connection.user) return;</span>
+<span class="code-line" data-line="2">if (!roomId || !body || body.length &gt; this.config.maxMessageLength) return;</span>
+<span class="code-line" data-line="3">const room = await this.database.getRoom(roomId);</span>
+<span class="code-line" data-line="4">if (!room || room.status !== &quot;active&quot;) return;</span>
+<span class="code-line" data-line="5">const message = await this.database.createMessage(roomId, connection.user.id, body);</span>
+<span class="code-line" data-line="6">const from = `${room.jid}/${connection.nickname}`;</span>
+<span class="code-line" data-line="7">const payload = `&lt;message from=&quot;${escapeXml(from)}&quot; type=&quot;groupchat&quot; id=&quot;${escapeXml(message.id)}&quot;&gt;&lt;body&gt;${escapeXml(message.body)}&lt;/body&gt;&lt;x xmlns=&quot;${META_NAMESPACE}&quot; userId=&quot;${escapeXml(message.userId)}&quot; displayName=&quot;${escapeXml(message.displayName)}&quot; createdAt=&quot;${escapeXml(message.createdAt)}&quot;/&gt;&lt;/message&gt;`;</span>
+<span class="code-line" data-line="8">for (const member of this.roomConnections.get(roomId) || []) this.send(member, payload);</span>
+<span class="code-line" data-line="9">await this.publishEvent(roomId, &quot;message&quot;, payload);</span></code></pre></div>
+<p>“先落库，后广播”让实时回显和历史记录共用同一个服务端 ID。用户端发送时也不抢先把草稿插进列表，而是等服务端回显；否则客户端自造一条、服务端再回一条，聊天窗口会像复读机。Redis 事件带 <code>gatewayId</code>，订阅者跳过自己发出的事件，避免本机广播再来一遍。这个小字段不显眼，但省掉了“我为什么收到了两个我”的排查夜晚。</p>
+<h2 id="section-4"><span class="section-index">04</span>一套数据库接口，两种时间观念</h2>
+<p>本地 SQLite 使用 Node 的 <code>DatabaseSync</code>，Neon PostgreSQL 则通过异步请求访问。同一条 REST 路由和同一个 XMPP 网关怎么接住两者？<a href="../../apps/server/src/db.ts"><code>ChatDatabase</code></a> 把返回值写成 <code>Awaitable&lt;T&gt;</code>，调用处统一 <code>await</code>：普通值会立即得到结果，Promise 则等待完成。相关签名摘录如下：</p>
+<div class="code-card"><div class="code-card-head"><span>CODE PREVIEW <b>TS</b></span><button type="button" class="copy-code" aria-label="复制代码">复制代码</button></div><pre><code><span class="code-line" data-line="1">export type Awaitable&lt;T&gt; = T | Promise&lt;T&gt;;</span>
+<span class="code-line" data-line="2"> </span>
+<span class="code-line" data-line="3">export interface ChatDatabase {</span>
+<span class="code-line" data-line="4">  listMessages(roomId: string, limit?: number): Awaitable&lt;MessageRecord[]&gt;;</span>
+<span class="code-line" data-line="5">  createMessage(roomId: string, userId: string, body: string): Awaitable&lt;MessageRecord&gt;;</span>
+<span class="code-line" data-line="6">}</span></code></pre></div>
+<p>这样，选择 SQLite 或 Neon 的代码集中在服务启动处，消息处理流程不必长出两套分支。代价也清楚：本地 SQLite 的同步读写会占用 Node 事件循环；这个接口统一的是<strong>调用方式</strong>，不是两种存储的吞吐和延迟。网关先持久化再广播的选择，也让数据库写入时间直接进入发送延迟预算。</p>
+<h2 id="section-5"><span class="section-index">05</span>断线补账：实时通道不负责记账本</h2>
+<p>Redis Pub/Sub 负责在线扩散，不保存离线消息。<code>@xmpp/client</code> 重连并再次进入 <code>online</code> 时，会重新发 presence 入房；用户端同时通过 REST 拉取最近的房间历史，把结果与当前消息按服务端 ID 去重并按时间排序：</p>
+<div class="code-card"><div class="code-card-head"><span>CODE PREVIEW <b>TS</b></span><button type="button" class="copy-code" aria-label="复制代码">复制代码</button></div><pre><code><span class="code-line" data-line="1">const result = await request&lt;{ messages: ImChatMessage[] }&gt;(`/rooms/${roomId}/messages`);</span>
+<span class="code-line" data-line="2">if (selectedRoom.value?.id !== roomId) return;</span>
+<span class="code-line" data-line="3">const unique = new Map&lt;string, ImChatMessage&gt;();</span>
+<span class="code-line" data-line="4">for (const message of [...result.messages, ...messages.value]) unique.set(message.id, message);</span>
+<span class="code-line" data-line="5">messages.value = [...unique.values()].sort((a, b) =&gt; a.createdAt.localeCompare(b.createdAt));</span></code></pre></div>
+<p>代码位于 <a href="../../apps/client/src/App.vue"><code>App.vue</code></a>。这里的设计很实用：XMPP 负责低延迟送达，数据库负责可重新读取的事实。但“补账”也有边界：REST 默认只取最近 80 条，长时间离线或高流量房间还需要分页游标；Pub/Sub 发布失败时，其他实例的在线用户可能要等下一次历史同步才能看到那条消息。</p>
+<h2 id="section-6"><span class="section-index">06</span>管理端：聊天之外还有秩序</h2>
+<figure><img src="assets/admin-login.webp" alt="中文管理端登录页，展示管理员账号与受保护的密码输入框"></figure>
+<p><em>图 2：线上管理端登录入口。管理员密码由部署环境配置，不随静态页面发布。</em></p>
+<p>举报入口要求用户已加入房间，且被举报消息确实属于该房间。管理端走 REST 审核举报、暂停房间、停用账号，以及把消息状态从 <code>visible</code> 改为 <code>removed</code>。聊天面板读到 <code>removed</code> 会显示占位文案，而非直接删除历史行；审核因此留有记录，也不会让对话时间线凭空塌一块。</p>
+<p>这套审核仍有一个明确边界：现有实现没有把“消息已移除”实时广播到所有在线聊天窗口；打开中的视图要重新进入房间或重新加载，才会读到新状态。重连补账时，合并逻辑还会让内存中的旧消息覆盖同 ID 的历史记录，因此单靠重连也不能刷新这条审核状态。管理端的 <code>activeUsers</code> 指<strong>状态为 active 的账号数</strong>；房间的 <code>memberCount</code> 来自入房成员表。两者都不是当前 WebSocket 在线人数。如果直接拿去做运营大屏，数字会很有信心，含义却可能悄悄跑偏。</p>
+<h2 id="section-7"><span class="section-index">07</span>本地跑起来，再决定下一步</h2>
+<p>项目是 pnpm workspace，四个包分别是用户端、管理端、服务端和可复用 IM UI。使用 Node.js 22.5+ 后，在不同终端运行：</p>
+<div class="code-card"><div class="code-card-head"><span>CODE PREVIEW <b>BASH</b></span><button type="button" class="copy-code" aria-label="复制代码">复制代码</button></div><pre><code><span class="code-line" data-line="1">pnpm install</span>
+<span class="code-line" data-line="2">pnpm dev:server</span>
+<span class="code-line" data-line="3">pnpm dev:client</span>
+<span class="code-line" data-line="4">pnpm dev:admin</span></code></pre></div>
+<p>本地用户端是 <code>http://localhost:5178</code>，管理端是 <code>http://localhost:5179</code>，API 位于 <code>http://localhost:8787</code>，XMPP WebSocket 是 <code>ws://localhost:8787/xmpp-websocket</code>。本地演示用户同样可用 <code>guest</code> / <code>guest123!</code>；本地管理员初始密码见项目 <a href="../../README.md"><code>README</code></a>，生产环境由 <code>IM_ADMIN_PASSWORD</code> 设置。</p>
+<p>Match Chat 已经把一条消息最容易被忽略的旅程串起来：认证、入群、持久化、跨实例扩散、断线补齐、举报审核。若继续向生产级平台推进，下一步值得补的是消息幂等键、可分页的历史补偿、审核事件实时同步，以及对网关 XML 解析和 WebSocket 部署环境做更完整的协议与负载验证。聊天框可以很轻，消息的行李箱还是得认真打包。</p></article></div>
+  <footer class="site-footer">MATCH CHAT / ARTICLE PREVIEW · 根据仓库源码生成</footer>
+  <script>
+    for (const button of document.querySelectorAll('.copy-code')) {
+      button.addEventListener('click', async () => {
+        const code = button.closest('.code-card').querySelector('code');
+        const value = [...code.querySelectorAll('.code-line')].map((line) => line.textContent).join('\n');
+        let copied = false;
+        try { await navigator.clipboard.writeText(value); copied = true; }
+        catch { /* Browsers may deny the async clipboard API for local previews. */ }
+        if (!copied) {
+          const input = document.createElement('textarea');
+          input.value = value;
+          input.style.position = 'fixed';
+          input.style.opacity = '0';
+          document.body.appendChild(input);
+          input.select();
+          copied = document.execCommand('copy');
+          input.remove();
+        }
+        button.textContent = copied ? '已复制' : '复制失败';
+        setTimeout(() => { button.textContent = '复制代码'; }, 1800);
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,102 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 940" role="img" aria-labelledby="title desc">
+  <title id="title">Match Chat 一条消息的六步旅程</title>
+  <desc id="desc">登录获取 JWT，申请独立 IM 凭据，XMPP WebSocket 完成 SASL PLAIN、资源绑定与 MUC 入房，消息写入数据库后广播给本地和其他实例，断线重连时用 REST 历史按消息 ID 合并。</desc>
+  <defs>
+    <linearGradient id="bg" x2="1" y2="1"><stop stop-color="#101823"/><stop offset="1" stop-color="#0b1119"/></linearGradient>
+    <pattern id="rule" width="16" height="16" patternUnits="userSpaceOnUse"><path d="M0 15.5H16" stroke="#1c2a37" stroke-width=".5"/></pattern>
+    <style>
+      .sans { font-family: "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; }
+      .mono { font-family: "SFMono-Regular", Menlo, Consolas, monospace; }
+      .white { fill: #f1f4f6; }
+      .body { fill: #aebbc6; }
+      .muted { fill: #8294a3; }
+      .step { font-size: 23px; font-weight: 750; }
+      .note { font-size: 14px; }
+      .code { font-size: 13px; }
+      .card { fill: #17222e; stroke: #344452; stroke-width: 1.1; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="940" rx="22" fill="url(#bg)"/>
+  <rect width="1280" height="940" rx="22" fill="url(#rule)" opacity=".32"/>
+  <path d="M56 154H1224" stroke="#33414c"/>
+  <rect x="56" y="43" width="37" height="37" rx="9" fill="#c9f36d"/>
+  <text x="74.5" y="68" text-anchor="middle" class="mono" font-size="20" font-weight="900" fill="#101823">M</text>
+  <text x="108" y="58" class="mono" font-size="12" letter-spacing="2" font-weight="700" fill="#c9f36d">MATCH CHAT / MESSAGE TRACE</text>
+  <text x="56" y="124" class="sans white" font-size="40" font-weight="750">一条消息，六次过站。</text>
+  <text x="505" y="122" class="sans body" font-size="16">从门票、握手到落库、广播，再到断线后的补票。</text>
+
+  <path d="M101 228V779" stroke="#40515e" stroke-width="3" stroke-dasharray="3 9" stroke-linecap="round"/>
+
+  <!-- 01: API login -->
+  <rect x="56" y="178" width="1168" height="94" rx="14" class="card"/>
+  <rect x="56" y="178" width="5" height="94" rx="2.5" fill="#7dd9e9"/>
+  <circle cx="101" cy="225" r="23" fill="#7dd9e9"/>
+  <text x="101" y="232" class="mono" font-size="16" font-weight="900" fill="#10232c" text-anchor="middle">01</text>
+  <text x="150" y="214" class="sans white step">先领门票</text>
+  <text x="150" y="243" class="sans body note">浏览器以账号密码登录；API 校验用户，签发后续 REST 请求使用的 JWT。</text>
+  <rect x="830" y="198" width="365" height="54" rx="9" fill="#0e1c27" stroke="#355766"/>
+  <text x="848" y="221" class="mono code" fill="#7dd9e9">POST /api/auth/login</text>
+  <text x="848" y="241" class="mono code" fill="#aabec8">→ { token, user }</text>
+
+  <!-- 02: IM session -->
+  <rect x="56" y="288" width="1168" height="94" rx="14" class="card"/>
+  <rect x="56" y="288" width="5" height="94" rx="2.5" fill="#7dd9e9"/>
+  <circle cx="101" cy="335" r="23" fill="#7dd9e9"/>
+  <text x="101" y="342" class="mono" font-size="16" font-weight="900" fill="#10232c" text-anchor="middle">02</text>
+  <text x="150" y="324" class="sans white step">换一把独立钥匙</text>
+  <text x="150" y="353" class="sans body note">带 JWT 申请 IM 凭据；本地放内存，线上放 Redis 并设过期时间。</text>
+  <rect x="830" y="308" width="365" height="54" rx="9" fill="#0e1c27" stroke="#355766"/>
+  <text x="848" y="331" class="mono code" fill="#7dd9e9">POST /api/im/session</text>
+  <text x="848" y="351" class="mono code" fill="#aabec8">→ { credential, websocketUrl }</text>
+
+  <!-- 03: XMPP handshake -->
+  <rect x="56" y="398" width="1168" height="106" rx="14" class="card"/>
+  <rect x="56" y="398" width="5" height="106" rx="2.5" fill="#c9f36d"/>
+  <circle cx="101" cy="451" r="23" fill="#c9f36d"/>
+  <text x="101" y="458" class="mono" font-size="16" font-weight="900" fill="#172213" text-anchor="middle">03</text>
+  <text x="150" y="439" class="sans white step">握手，然后进房</text>
+  <text x="150" y="467" class="sans body note">WebSocket 建连；SASL PLAIN 验证会话凭据，重开流、绑定 JID，发送 MUC presence。</text>
+  <text x="150" y="487" class="sans muted" font-size="12">选房时，客户端还通过 REST 加入房间并拉取初始历史。</text>
+  <rect x="830" y="419" width="365" height="64" rx="9" fill="#1c241c" stroke="#5d7445"/>
+  <text x="848" y="444" class="mono code" fill="#c9f36d">SASL PLAIN → bind</text>
+  <text x="848" y="466" class="mono code" fill="#b5c9a6">→ &lt;presence to="room@…"/&gt;</text>
+
+  <!-- 04: persistence -->
+  <rect x="56" y="520" width="1168" height="94" rx="14" class="card"/>
+  <rect x="56" y="520" width="5" height="94" rx="2.5" fill="#beaaf3"/>
+  <circle cx="101" cy="567" r="23" fill="#beaaf3"/>
+  <text x="101" y="574" class="mono" font-size="16" font-weight="900" fill="#211a2f" text-anchor="middle">04</text>
+  <text x="150" y="556" class="sans white step">消息先落盘</text>
+  <text x="150" y="585" class="sans body note">网关验证已入房且房间可用；写入 SQLite 或 Neon 成功后才构造广播 stanza。</text>
+  <rect x="830" y="540" width="365" height="54" rx="9" fill="#211d2e" stroke="#675b86"/>
+  <text x="848" y="563" class="mono code" fill="#beaaf3">database.createMessage(...)</text>
+  <text x="848" y="583" class="mono code" fill="#b9afca">→ message id + timestamp</text>
+
+  <!-- 05: fanout -->
+  <rect x="56" y="630" width="1168" height="94" rx="14" class="card"/>
+  <rect x="56" y="630" width="5" height="94" rx="2.5" fill="#c9f36d"/>
+  <circle cx="101" cy="677" r="23" fill="#c9f36d"/>
+  <text x="101" y="684" class="mono" font-size="16" font-weight="900" fill="#172213" text-anchor="middle">05</text>
+  <text x="150" y="666" class="sans white step">扇出到所有在线成员</text>
+  <text x="150" y="695" class="sans body note">先推本实例连接；线上再经 Redis Pub/Sub 送达其他实例，并按 gatewayId 去重。</text>
+  <rect x="830" y="650" width="365" height="54" rx="9" fill="#1c241c" stroke="#5d7445"/>
+  <text x="848" y="673" class="mono code" fill="#c9f36d">local sockets + Redis Pub/Sub</text>
+  <text x="848" y="693" class="mono code" fill="#b5c9a6">→ other gateway instances</text>
+
+  <!-- 06: recovery -->
+  <rect x="56" y="740" width="1168" height="94" rx="14" class="card"/>
+  <rect x="56" y="740" width="5" height="94" rx="2.5" fill="#f4bd76"/>
+  <circle cx="101" cy="787" r="23" fill="#f4bd76"/>
+  <text x="101" y="794" class="mono" font-size="16" font-weight="900" fill="#33200b" text-anchor="middle">06</text>
+  <text x="150" y="776" class="sans white step">断线后补齐上下文</text>
+  <text x="150" y="805" class="sans body note">客户端自动重连并重新入房；再从 REST 拉历史，用消息 ID 合并，避免重复气泡。</text>
+  <rect x="830" y="760" width="365" height="54" rx="9" fill="#2a241c" stroke="#8a6a42"/>
+  <text x="848" y="783" class="mono code" fill="#f4bd76">GET /api/rooms/:id/messages</text>
+  <text x="848" y="803" class="mono code" fill="#d0b69a">→ merge by message.id</text>
+
+  <path d="M56 860H1224" stroke="#33414c"/>
+  <rect x="56" y="882" width="8" height="8" rx="2" fill="#beaaf3"/>
+  <text x="78" y="891" class="sans body" font-size="14">顺序决定可靠性：先保存，再广播；断线期间的空白由 REST 历史补上。</text>
+  <text x="1224" y="892" class="mono" font-size="12" fill="#718493" text-anchor="end">RFC 7395 / XMPP over WebSocket</text>
+</svg>

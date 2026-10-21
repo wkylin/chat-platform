@@ -1,0 +1,118 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 760" role="img" aria-labelledby="title desc">
+  <title id="title">Match Chat 平台架构：Vue 前端、REST API、XMPP 网关和两种存储环境</title>
+  <desc id="desc">用户端通过 REST 管理账号、房间、历史和举报，通过 XMPP over WebSocket 进行实时群聊；管理端通过 REST 审核。Node 服务本地使用 SQLite 与内存会话，线上使用 Neon Postgres 与 Upstash Redis。</desc>
+  <defs>
+    <linearGradient id="background" x2="1" y2="1">
+      <stop stop-color="#0a1118"/>
+      <stop offset="1" stop-color="#101824"/>
+    </linearGradient>
+    <linearGradient id="service" x2="1" y2="1">
+      <stop stop-color="#151f2b"/>
+      <stop offset="1" stop-color="#101923"/>
+    </linearGradient>
+    <pattern id="dots" width="22" height="22" patternUnits="userSpaceOnUse">
+      <circle cx="1" cy="1" r="1" fill="#263748" opacity=".48"/>
+    </pattern>
+    <marker id="cyan-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0 7 3.5 0 7Z" fill="#7dd9e9"/>
+    </marker>
+    <marker id="lime-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0 7 3.5 0 7Z" fill="#c9f36d"/>
+    </marker>
+    <marker id="violet-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto">
+      <path d="M0 0 7 3.5 0 7Z" fill="#beaaf3"/>
+    </marker>
+    <style>
+      .sans { font-family: "PingFang SC", "Noto Sans CJK SC", "Microsoft YaHei", sans-serif; }
+      .mono { font-family: "SFMono-Regular", Menlo, Consolas, monospace; }
+      .heading { fill: #f2f5f8; font-weight: 750; }
+      .body { fill: #a5b3bf; }
+      .muted { fill: #708293; }
+      .tiny { font-size: 12px; letter-spacing: .12em; font-weight: 700; }
+      .label { font-size: 13px; font-weight: 700; }
+      .node { fill: #131d28; stroke: #334353; stroke-width: 1.2; }
+      .line { fill: none; stroke-linecap: round; stroke-linejoin: round; stroke-width: 2.5; }
+    </style>
+  </defs>
+
+  <rect width="1280" height="760" rx="22" fill="url(#background)"/>
+  <rect width="1280" height="760" rx="22" fill="url(#dots)"/>
+  <path d="M58 162H1222" stroke="#31404d"/>
+  <rect x="58" y="49" width="36" height="36" rx="9" fill="#c9f36d"/>
+  <text x="76" y="74" class="mono" text-anchor="middle" font-size="20" font-weight="900" fill="#0a1118">M</text>
+  <text x="111" y="63" class="mono tiny" fill="#c9f36d">MATCH CHAT / SYSTEM MAP</text>
+  <text x="58" y="129" class="sans heading" font-size="39">一间房，两条路。</text>
+  <text x="471" y="128" class="sans body" font-size="16">REST 管记录，XMPP 管此刻；后台负责把房间管好。</text>
+  <line x1="1011" y1="77" x2="1044" y2="77" class="line" stroke="#7dd9e9"/>
+  <text x="1051" y="81" class="mono" font-size="12" fill="#a5b3bf">REST</text>
+  <line x1="1116" y1="77" x2="1149" y2="77" class="line" stroke="#c9f36d"/>
+  <text x="1156" y="81" class="mono" font-size="12" fill="#a5b3bf">XMPP</text>
+
+  <text x="58" y="190" class="mono tiny" fill="#7dd9e9">01 / BROWSER</text>
+  <text x="373" y="190" class="mono tiny" fill="#c9f36d">02 / NODE SERVICE</text>
+  <text x="860" y="190" class="mono tiny" fill="#beaaf3">03 / STATE</text>
+
+  <rect x="58" y="207" width="260" height="184" rx="17" class="node"/>
+  <rect x="58" y="207" width="5" height="184" rx="2.5" fill="#c9f36d"/>
+  <circle cx="90" cy="243" r="10" fill="#c9f36d"/>
+  <circle cx="90" cy="243" r="3" fill="#0a1118"/>
+  <text x="110" y="249" class="sans heading" font-size="21">用户端</text>
+  <text x="85" y="283" class="mono" font-size="13" fill="#a5b3bf">apps/client · Vue 3</text>
+  <path d="M85 305H291" stroke="#31404d"/>
+  <text x="85" y="333" class="sans body" font-size="14">账号 · 房间 · 历史 · 举报</text>
+  <text x="85" y="361" class="sans" font-size="14" fill="#c9f36d">实时群聊 / 可复用 IM 面板</text>
+
+  <rect x="58" y="422" width="260" height="184" rx="17" class="node"/>
+  <rect x="58" y="422" width="5" height="184" rx="2.5" fill="#7dd9e9"/>
+  <rect x="81" y="453" width="20" height="20" rx="4" fill="#7dd9e9"/>
+  <path d="M87 459h8m-8 5h8m-8 5h5" stroke="#0a1118" stroke-width="2"/>
+  <text x="110" y="471" class="sans heading" font-size="21">管理端</text>
+  <text x="85" y="498" class="mono" font-size="13" fill="#a5b3bf">apps/admin · Vue 3</text>
+  <path d="M85 520H291" stroke="#31404d"/>
+  <text x="85" y="550" class="sans body" font-size="14">运营概览 · 房间状态</text>
+  <text x="85" y="577" class="sans body" font-size="14">举报审核 · 用户管理</text>
+
+  <rect x="373" y="207" width="436" height="415" rx="21" fill="url(#service)" stroke="#415261" stroke-width="1.4"/>
+  <text x="396" y="235" class="mono" font-size="12" fill="#8497a6">apps/server · 一个 HTTP 服务 / 两种入口</text>
+  <rect x="395" y="254" width="392" height="141" rx="14" fill="#102331" stroke="#43717e" stroke-width="1.2"/>
+  <rect x="413" y="274" width="62" height="24" rx="5" fill="#7dd9e9"/>
+  <text x="444" y="291" class="mono label" fill="#09202b" text-anchor="middle">REST</text>
+  <text x="490" y="291" class="sans heading" font-size="20">业务 API</text>
+  <text x="414" y="329" class="mono" font-size="12.5" fill="#7dd9e9">/api/auth · /api/rooms · /api/admin</text>
+  <text x="414" y="358" class="sans body" font-size="14">JWT 校验、历史查询、举报与审核</text>
+
+  <rect x="395" y="420" width="392" height="178" rx="14" fill="#20271d" stroke="#788f4a" stroke-width="1.2"/>
+  <rect x="413" y="441" width="62" height="24" rx="5" fill="#c9f36d"/>
+  <text x="444" y="458" class="mono label" fill="#1a2812" text-anchor="middle">XMPP</text>
+  <text x="490" y="458" class="sans heading" font-size="20">WebSocket 网关</text>
+  <text x="414" y="495" class="mono" font-size="12.5" fill="#c9f36d">SASL PLAIN → bind → MUC presence</text>
+  <text x="414" y="527" class="sans body" font-size="14">消息先入库，再推给同实例房间成员</text>
+  <text x="414" y="557" class="sans body" font-size="14">跨实例事件由 Redis Pub/Sub 转发</text>
+
+  <path d="M318 282H391" class="line" stroke="#7dd9e9" marker-end="url(#cyan-arrow)"/>
+  <path d="M318 341H346V505H391" class="line" stroke="#c9f36d" marker-end="url(#lime-arrow)"/>
+  <path d="M318 518H359V359H391" class="line" stroke="#7dd9e9" marker-end="url(#cyan-arrow)"/>
+
+  <rect x="860" y="207" width="362" height="415" rx="21" fill="#151b29" stroke="#514b69" stroke-width="1.4"/>
+  <text x="884" y="235" class="sans muted" font-size="13">按运行环境选择存储与共享状态</text>
+  <rect x="884" y="252" width="314" height="134" rx="14" fill="#1b2430" stroke="#4b5e6c"/>
+  <text x="904" y="282" class="mono tiny" fill="#a4bcce">LOCAL / 本地开发</text>
+  <text x="904" y="318" class="sans heading" font-size="19">SQLite</text>
+  <text x="904" y="347" class="sans body" font-size="14">业务数据 · Node 内存中的 IM 会话</text>
+  <rect x="884" y="407" width="314" height="191" rx="14" fill="#211e30" stroke="#6a5d88"/>
+  <text x="904" y="437" class="mono tiny" fill="#beaaf3">PRODUCTION / 线上部署</text>
+  <text x="904" y="473" class="sans heading" font-size="19">Neon Postgres</text>
+  <text x="904" y="497" class="sans body" font-size="13">账号 · 房间 · 消息 · 举报</text>
+  <path d="M904 515H1177" stroke="#514b69"/>
+  <text x="904" y="548" class="sans heading" font-size="19">Upstash Redis</text>
+  <text x="904" y="574" class="sans body" font-size="13">IM 凭据 TTL · 跨实例消息 / presence</text>
+
+  <path d="M809 402H839V319H880" class="line" stroke="#beaaf3" marker-end="url(#violet-arrow)"/>
+  <path d="M839 402V501H880" class="line" stroke="#beaaf3" marker-end="url(#violet-arrow)"/>
+  <circle cx="839" cy="402" r="5" fill="#beaaf3"/>
+
+  <path d="M58 657H1222" stroke="#31404d"/>
+  <text x="58" y="693" class="mono tiny" fill="#c9f36d">DESIGN RULE</text>
+  <text x="168" y="694" class="sans heading" font-size="15">实时消息走 XMPP；账号、历史、治理走 REST。</text>
+  <text x="58" y="722" class="sans muted" font-size="13">同一套 Vue 客户端协议可接标准 XMPP 服务端；当前 Node 网关实现项目所需的最小 C2S 与 MUC 流程。</text>
+</svg>
